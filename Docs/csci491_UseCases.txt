@@ -1,0 +1,44 @@
+# NEW -> AREA
+
+
+
+# NEW -> VIEW_COMPONENT
+
+
+
+# VIEW_COMPONENT -> VIEW_COMPONENT VIEW
+
+
+
+# NEW -> MODEL
+
+
+
+# MODEL -> CONTROLLER/VIEWS
+    name = class_name
+    area = namespace - "Models"
+    add_using = using namespace
+    
+    controller_services = list_services
+    controller_end_points = {Index, Details, Create_Get, Create_Post, Edit_Get,
+                             Edit_Post, Delete_Get, Delete_Post} 
+            or specified_in_template
+    end_point_annotations = specified_in_template
+    create_bind_string = based_on_model_members
+
+    
+
+
+
+NEW -> SERVICE/SERVICE_INTERFACE
+
+
+
+# SERVICE <-> SERVICE_INTERFACE
+
+
+
+# MODEL/CONTROLLER/VIEWS -> BREADCRUMBS
+
+
+

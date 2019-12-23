@@ -1,0 +1,50 @@
+## ANTLR Keywords
+
+import, fragment, lexer, parser, grammar, returns , locals , throws, catch, 
+finally, mode, options, tokens. 
+
+Also, although it is not a keyword, do not use the word "rule" as a rule or 
+alternative label name since it results in "RuleContext" as a context object; 
+RuleContext clashes with the built-in class. Furthermore, do not use any 
+keyword of the target language as a token, label, or rule name. For example, 
+rule "if" would result in a generated function called "if()".
+
+
+## Lexer Commands
+
+skip
+    - Do not return a token to the parser for this rule. This is typically used for whitespace:
+
+more
+    - Match this rule but continue looking for a token. The token rule that matches next will include the text matched for this rule. This is typically used with modes. Here’s an example that matches string literals with a mode:
+
+type(T)
+    - Set the token type for the current token. Here’s an example that forces two different tokens to use the same token type:
+
+channel(C)
+    - Set the channel for the current token. The default is Token.DEFAULT_CHANNEL. You can define constants and then use it or an integer literal above Token.DEFAULT_CHANNEL in value (0). There’s a generic hidden channel called Token.HIDDEN_CHANNEL with value 1.
+
+mode(M)
+    - After matching this token, switch the lexer to mode M . The next time the lexer tries to match a token, it will look only at rules in mode M. M can be a mode name from the same grammar or an integer literal. See grammar Strings earlier.
+
+pushMode(M)
+    - This is the same as mode except that it pushes the current mode onto a stack as well as setting the mode M. It should be used in conjunction with popMode.
+
+popMode
+    - Pop a mode from the top of the mode stack and set the current mode of the lexer to that. This is used in conjunction with pushMode.
+
+## Left/Right Associativity
+
+Unless otherwise specified, ANTLR assumes that all operators are left asso-
+ciative. In other words, 1+2+3 groups like this: (1+2)+3. Some operators,
+however, are right associative, such as assignment and exponentiation, as
+we saw in Section 5.4, Dealing with Precedence, Left Recursion, and Associa-
+tivity, on page 69. To specify right associativity, use the assoc token option.
+
+e.g.
+expr: expr '^'<assoc=right> expr
+...
+| expr '='<assoc=right> expr
+...
+;
+

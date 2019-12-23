@@ -1,0 +1,248 @@
+## Links to and Descriptions of Articles Read 
+
+00. TITLE
+Link:   
+Date:   
+Rating: 
+Notes:   
+    - 
+
+01. Metaprogramming (Wikipedia)
+Link:   https://en.m.wikipedia.org/wiki/Metaprogramming
+Date:   Oct 27
+Rating: 4-*
+Notes:   
+    - Homoiconicity: Having the programming language itself as a first-class data type.
+        - Not useful for this project.
+    - Metaprogramming usually works in one of three ways:
+        1. Expose the internals of the run-time engine to the programming code 
+           through APIs.
+        2. Dynamic execution of expressions that contain programming commands.
+        3. Step outside the language entirely; General purpose program transformation 
+           systems which accept language descriptions and carry out arbitrary 
+           transformations on those languages.
+           
+
+02. Convention Over Configuration (Wikipedia)
+Link:   https://en.m.wikipedia.org/wiki/Convention_over_configuration
+Date:   Oct 27
+Rating: 3++
+Notes:   
+    - I plan to follow the 'Convention over configuration' design paradigm when designing
+    the end user components of my tool.
+
+
+03. Macro (computer science) (Wikipedia)
+Link:   https://en.m.wikipedia.org/wiki/Macro_(computer_science)
+Date:   Oct 27
+Rating: 3-
+Notes:   
+    - Macros in general could be explored just to give me some ideas on how to
+    handle/implement some text transformation/replacement code.
+
+
+04. String Interpolation (Wikipedia)
+Link:   https://en.m.wikipedia.org/wiki/String_interpolation
+Date:   Nov 2
+Rating: 
+Notes:   
+    - String Interpolation/Variable Interpolation/Variable Substitution/Variable 
+    Expansion is the process of evaluating a string literal containing one or 
+    more placeholders, yielding a result in which the placeholders are replaced with 
+    their corresponding values. 
+    - It is a form of simple template processing.
+    - String interpolation allows easier and more intuitive string formatting and 
+    content-specification compared with string concatenation.
+    - Probably going to use some form of string interpolation to replace placeholders
+    in template files.
+
+
+05. Template Processor (Wikipedia)
+Link:   https://en.m.wikipedia.org/wiki/Template_processor
+Date:   Nov 2
+Rating: 5
+Notes:   
+    - Outlines role and features of a template processor/template engine/template parser.
+    - Right on point with what I am attempting to do, but doesn't go into much detail.
+
+
+06. Compiler-compiler (Wikipedia)
+Link:   https://en.m.wikipedia.org/wiki/Compiler-compiler
+Date:   Nov 2
+Rating: 4
+Notes:   
+    - The most common type of compiler-compiler is more precisely called a parser 
+    generator, and only handles syntactic analysis: its input is a grammar, typically 
+    written in Backus–Naur form (BNF) or extended Backus–Naur form (EBNF) that defines 
+    the syntax of a programming language; and its output is source code of a parser for 
+    the programming language.
+    - A typical parser generator associates executable code with each of the rules of 
+    the grammar that should be executed when these rules are applied by the parser.
+    -Depending upon the type of parser that should be generated, these routines may 
+    construct a parse tree (or abstract syntax tree), or generate executable code 
+    directly.
+
+
+07. Domain Specific Language (Wikipedia)
+Link:   https://en.m.wikipedia.org/wiki/Domain-specific_language
+Date:   Nov 2
+Rating: 4
+Notes:   
+    - Create DSL for user templates.
+    - One style of metaprogramming is to employ domain-specific languages (DSLs). 
+    A fairly common example of using DSLs involves generative metaprogramming: lex 
+    and yacc, two tools used to generate lexical analyzers and parsers, let the user 
+    describe the language using regular expressions and context-free grammars, and 
+    embed the complex algorithms required to efficiently parse the language.
+
+
+08. Jetbrains MPS (Wikipedia)
+Link:   https://en.m.wikipedia.org/wiki/JetBrains_MPS
+Date:   Nov 2
+Rating: 2-
+Notes:   
+    - JetBrains MPS is a tool for designing domain-specific languages.
+    - Probably overkill for what I am trying to achieve.
+
+
+09. Comparison of parser generators (Wikipedia)
+Link:   https://en.m.wikipedia.org/wiki/Comparison_of_parser_generators
+Date:   Nov 2
+Rating: 4
+Notes:   
+    - Regular languages (Chomsky Type 3) are languages which can be matched by a finite 
+    state machine constructed from a regular expression.
+        - Lexers can be implemented using regular languages.
+    - Context-free languages (Chomsky Type 2) are languages which can be matched by 
+    a sequence of replacement rules, each of which essentially maps each non-terminal 
+    element to a sequence of terminal elements and/or other nonterminal elements. 
+        - Grammars of this type can match anything that can be matched by 
+        a regular grammar, and furthermore, can handle the concept of recursive "nesting" 
+        - The deterministic context-free languages are a proper subset of context-free 
+        languages which can be efficiently parsed by deterministic pushdown automata.
+        - Parsers can be implemented using Deterministic context-free languages.
+    - ANTLR4 is a parser that can also do its own Lexing (in the same source file or 
+    a different source file as the parser source code).
+
+
+10. ANTLR (Wikipedia)
+Link:   https://en.m.wikipedia.org/wiki/ANTLR
+Date:   Nov 2
+Rating: 4
+Notes:   
+    - ANTLR can generate lexers, parsers, tree parsers, and combined lexer-parsers. 
+    - Parsers can automatically generate parse trees or abstract syntax trees, which can
+    be further processed with tree parsers. 
+    - Is an LL* parser
+    - ANTLR provides a single consistent notation for specifying lexers, parsers, 
+    and tree parsers.
+    - Over 200 grammars implemented in ANTLR 4 are available on Github.
+
+
+11. Parsing (Wikipedia)
+Link:   https://en.m.wikipedia.org/wiki/Parsing
+Date:   Nov 2
+Rating: 5+
+Notes:   
+    - Provides good explanation parsing process
+
+    - Common case of parsing a computer language:
+        - Two levels of grammar: lexical and syntactic.
+        - Three phases: Lexical Analysis, Syntactic Analysis, Semantic Analysis
+            - The first stage is the token generation, or lexical analysis, by which 
+            the input character stream is split into meaningful symbols defined by 
+            a grammar of regular expressions. 
+            - The next stage is parsing or syntactic analysis, which is checking that 
+            the tokens form an allowable expression (usually done with reference to 
+            a context-free grammar which recursively defines components that can make up 
+            an expression and the order in which they must appear).
+                - Not all rules defining programming languages can be expressed by 
+                context-free grammars alone (for example type validity and proper 
+                declaration of identifiers), but can be formally expressed with 
+                attribute grammars.
+            - The final phase is semantic parsing or analysis, which is working out 
+            the implications of the expression just validated and taking the appropriate 
+            action. Attribute grammars can also be used to define these actions.
+    - Top-down vs Bottom-up parsing.
+    - LL vs LR vs LALR parsers.
+        - Advantages of Lookahead in parsers.
+
+
+12. Attribute Grammar (Wikipedia)
+Link:   https://en.m.wikipedia.org/wiki/Attribute_grammar
+Date:   Nov 2
+Rating: 3+
+Notes:   
+    - An attribute grammar is a formal way to define attributes for the productions of 
+    a formal grammar, associating these attributes with values. 
+    - The evaluation occurs in the nodes of the abstract syntax tree, when the language 
+    is processed by some parser or compiler.
+    - Two groups of attributes: synthesized and inherited. 
+        - The synthesized attributes are the result of the attribute evaluation rules, 
+        and may also use the values of the inherited attributes. 
+        - The inherited attributes are passed down from parent nodes.
+    - In some approaches, synthesized attributes are used to pass semantic information 
+    up the parse tree, while inherited attributes help pass semantic information down 
+    and across it. 
+    - Attribute grammars can also be used to translate the syntax tree directly into 
+    code for some specific machine, or into some intermediate language.
+    - Attribute grammars can transport information from anywhere in the abstract syntax 
+    tree to anywhere else, in a controlled and formal way.
+
+
+
+13. The ANTLR Mega Tutorial
+Link:   https://tomassetti.me/antlr-mega-tutorial/
+        https://github.com/unosviluppatore/antlr-mega-tutorial
+        https://github.com/antlr/antlr4/tree/master/doc
+Date:   Nov 1/2
+Rating: 5+*
+Notes:
+    - What is covered by the tutorial:  
+        - Explain the basics: what a parser is, what it can be used for.
+        - See how to setup ANTLR to be used from JavaScript, Python, Java and C#.
+        - Discuss how to test your parser.
+        - Present advanced and useful features present in ANTLR.
+        - Show examples.
+        - Full tutorial example code is on github.
+
+    - Gave me a better understanding of what lexers do and what parsers do.
+        - Creating a small practice program may give me more insight into what 
+        lexers/parsers do.
+        - Could give me some inspiration about how to progress with project.
+    - Explained Listeners and Visitors.
+    - Talks about Solving Ambiguities with Semantic Predicates.
+    - Explains how to do basic testing.
+        - Probably will need to look into more advanced testing later.
+    - Briefly touches on Lexical Modes.
+        - I need a better explanation of how they work and what they are for.
+        - Will look into them later.
+    - Talks briefly about dealing with embedded code.
+        - Will need more research.
+    - Explains how Transforming Code works, along with issues that need to be considered
+    when transforming code (like loss of information due to certain actions being 
+    available in the initial language but not the target language).
+    - Dealing with Expressions.
+    - Brings up "channels".
+        - Don't know if they are ANTLR specific or common in Lexer/Parsers.
+        - Need to research further.
+    - Talks about how to handle some problematic tokens.
+      - Example:
+        x = y >> 3;
+            vs
+        List<Dictionary<string, int>> x;
+    - Contains links to ANTLR documentation and reference sites.
+
+
+https://en.m.wikipedia.org/wiki/Abstract_syntax_tree
+https://en.m.wikipedia.org/wiki/Context-free_grammar
+https://en.m.wikipedia.org/wiki/Parse_tree
+
+
+00. TITLE
+Link:   
+Date:   Nov 2
+Rating: 
+Notes:   
+    - 
+
