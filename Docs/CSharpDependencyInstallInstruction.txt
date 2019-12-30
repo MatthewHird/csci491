@@ -1,0 +1,66 @@
+Download ANTLR 4.7.2 from https://www.antlr.org/download.html
+
+Add or edit CLASSPATH variable:
+    Control Panel > System > Advanced system settings > Environment Variables >> System Variables > New/Edit
+
+    Set CLASSPATH to .;<Full ANTLR4 jar path>:
+        .;D:\Libraries\antlr-4.7.2-complete.jar
+
+#SKIP (doskey commands are not permanent; must run doskey commands every time a new cmd prompt is opened)
+Create batch script to run ANTLR4 tool:
+    java -cp D:\Libraries\antlr-4.7.2-complete.jar;%CLASSPATH% org.antlr.v4.Tool %*
+
+Create batch script to run grun (ANTLR4 gui):
+    java -cp D:\Libraries\antlr-4.7.2-complete.jar;%CLASSPATH% org.antlr.v4.gui.TestRig %*
+
+Add doskey shortcut entry for antlr:
+    doskey antlr=D:\BatchScripts\antlr4.bat
+
+Add doskey shortcut entry for grun:
+    doskey grun=D:\BatchScripts\grun.bat
+#END SKIP
+
+Create a file to store DOSKEY macros: 
+    D:\BatchScripts\macros.doskey
+
+    Add DOSKEY macros to file for ANTLR and grun (ANTLR gui):
+        antlr=java -cp D:\Libraries\antlr-4.7.2-complete.jar;%CLASSPATH% org.antlr.v4.Tool $* $T
+        grun=java -cp D:\Libraries\antlr-4.7.2-complete.jar;%CLASSPATH% org.antlr.v4.gui.TestRig $*
+
+Modify registry to set DOSKEY macrofile on commandline startup:
+    Open registry editor (regedit)
+    Go to: 
+        HKEY_CURRENT_USER\Software\Microsoft\Command Processor\
+    If no key named "Autorun":
+        Add new "String Value" sub-key: 
+            Right-click -> New -> String Value
+            Right-click -> Modify 
+                Value name: Autorun
+                Value data: DOSKEY /MACROFILE="C:\bat\macros.doskey"
+    If key exists named "Autorun":
+        Append doskey macrofile command:
+            Right-click -> Modify
+                To "Value data" append: &DOSKEY /MACROFILE="C:\bat\macros.doskey"
+
+Install ANTLR4 C# Runtime NuGet Package:
+    Install-Package Antlr4.Runtime.Standard -Version 4.7.2
+
+Install StringTemplate4 C# Runtime NuGet Package:
+    Install-Package StringTemplate4 -Version 4.0.8
+
+
+Add Environment Variables
+    Control Panel > System > Advanced system settings > Environment Variables >> System Variables > New
+
+    Set JAVA_HOME to location of java directory:
+        C:\Program Files\Java\jdk1.8.0_231
+
+    Set Antlr4ToolPath to <Full ANTLR4 jar path>:
+        D:\Libraries\antlr-4.7.2-complete.jar
+
+Antlr4ToolPath
+
+Install ANTLR extension for Visual Studio (ANTLR VSIX)
+
+Install Antlr4BuildTasks NuGet package:
+    Install-Package Antlr4BuildTasks -Version 1.0.9

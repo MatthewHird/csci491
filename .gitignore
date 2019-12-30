@@ -110,3 +110,9 @@ venv.bak/
 *.interp
 
 *.idea*
+
+simple_example_program/C#/ExampleProgram/bin
+simple_example_program/C#/ExampleProgram/obj
+simple_example_program/C#/ExampleProgram/packages
+
+*.vs/
