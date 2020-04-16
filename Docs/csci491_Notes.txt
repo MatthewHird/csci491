@@ -346,4 +346,163 @@ I will still need a way for the user to dictate what files get generated and
             - Create Interfaces and/or Abstract classes for user classes to 
             inherit from, or I create concrete classes that inherit from
             Interfaces or Abstract classes that provide public methods for user
-            to access.  
+            to access.
+
+## Dec 29, 2019
+
+Remember to flush buffers regularly (when writing to a file)
+
+pg 235 (247)        Chapter 13 Exploring the Runtime API
+
+pg 238 (250)        13.3 Input Streams of Characters and Tokens
+
+pg 239 (251)        13.4 Tokens and Token Factories
+
+Pg 243 (255)        13.8 Unbuffered Character and Token Streams
+
+
+## Dec 30, 2019
+
+Create island language that embeds commands in C# comments.
+    - Lex/parse with island language to break up C# code into chunks based on
+    the embedded commands.
+    - Lex/parse each chunk of C# code to take different actions based on the
+    the embedded commands.
+
+
+Figure out how to use Error Listeners.
+
+Replace all literal (quoted) terminals in CSharpParser with their associated
+    CSharpLexer rule identifiers.
+    - When parser is compiled, each quoted terminal is converted to/treated like
+    its equivalent lexer rule anyways.
+    - Makes it easier for me to see what properties I need to call when trying
+    to access the terminals of a rule in a listener/visitor.
+
+Replace the rules LT='<', GT='>' with 
+    OP_LT='<', OP_GT='>', OPEN_ANGLE='<', CLOSE_ANGLE='>'
+    - Better portrays the semantic meaning of the usages (less_than/greater_than
+    operators used individually without pair, while open/close angle brackets are
+    always paired as they are brackets)
+    - OP_LT and OP_GT match naming convention of other comparator operators.
+    - OPEN_ANGLE and CLOSE_ANGLE match naming convention other bracket types.
+
+
+## Jan 19, 2020
+
+Using McMaster.Extensions.CommandLineUtils NuGet package (forked from 
+Microsoft.Extensions.CommandLineUtils) to handle argument parsing.
+    - Can require option argument values to match a value from a list or Enum
+    - Can require option argument values to be of a specific type 
+    (e.g. ExistingFileName)
+    - Some or all arguments can be passed in a text file '@<filepath>' 
+    (e.g. @Some/Path/ArgFile.txt)
+
+D:\Files HDD\Workspace\csci491\Resources\TestData\Input\
+
+
+## Feb 28
+
+Services use case steps
+
+//Check for Areas folder
+//  If !exist:
+//      Create Areas folder
+
+//Check for <area> folder
+//  If !exist:
+//      Create <area> folder
+
+//Check for Services folder
+//  If !exist:
+//      Create Services folder
+
+
+//For each Service in Services:
+
+//Check for <subFolders> folders:
+//  Split <subFolder> path into folders (strings)
+//  For each folder in <subFolder> path:
+//      If !exist:
+//          Create folder
+
+//Check if <service> class file exists: 
+//  If !exist:
+//      Create <service> class file
+//      Create serviceClass StringTemplate
+//  Else:
+//      Parse <service> class file
+//          Extract list of existing public method signatures
+
+//Check if <service> interface file exists
+//  If !exist:
+//      Create <service> interface file
+//      Create serviceInterface StringTemplate
+//  Else:
+//      Parse <service> interface file
+//          Extract list of existing method signatures
+
+//Compare lists of method signatures between interface and class
+//  If methods in class that are not in interface:
+//      Create list of methods in class that are not in interface
+//      Add missing methods to interface
+//          Create StringTemplate for each method
+//          Parse interface and use rewriter to insert methods into parse tree
+//          Write parse tree as string to interface file
+//  If methods in interface that aren't in class:
+//      Create list of methods in interface that aren't in class
+//      Add missing methods to class
+//          Create StringTemplate for each method
+//          Parse class and use rewriter to insert methods into parse tree
+//          Write parse tree as string to class file
+
+//Check if Startup.cs exists
+//  If !exists:
+//      Throw error
+//  Else:
+//      Parse Startup.cs
+//          Find method "public void ConfigureServices(IServiceCollection services)"
+//              Get name of IServiceCollection parameter (services)
+//          Check each services.Add[Lifespan] method int the form
+//                  If TypeParameters:  services.AddScoped(typeof(IMyService<>), typeof(MyService<>));
+//                  Else:               services.AddScoped<IMyService, MyService>();
+//              If found and Lifespan in services.Add[Lifespan] == Service.Lifespan:
+//                  No action taken
+//              Else if found and Lifespan in services.Add[Lifespan] != Service.Lifespan:
+//                  Replace Add[Lifespan] with Add[Service.Lifespan] in token stream
+//              Else:
+//                  Create StringTemplate for services.Add[Lifespan] statement
+//                      If TypeParameters:  services.AddScoped(typeof(IMyService<>), typeof(MyService<>));
+//                      Else:               services.AddScoped<IMyService, MyService>();
+//                  Use rewriter to insert services.Add[Lifespan] into token stream
+//                  Write parse tree as string to Startup.cs
+
+//Inject Service into Controllers
+//  For each Controller in Service.Controllers:
+//      Check whether [Controller.Name].cs exists:
+//              If Controller.Area != null:
+//                  ~/Areas/[Controller.Area]/Controllers/[Controller.Name].cs
+//              Else:
+//                  ~/Controllers/[Controller.Name].cs
+//                  ~/Areas/[Service.Area]/Controllers/[Controller.Name].cs
+//          If !exists:
+//              Throw error
+//          Else:
+//              Parse Controller file and check whether service has been injected
+//                  If injection exists:
+//                      No action
+//                  Else:
+//                      Create StringTemplates for private variable:
+//                          private IMyService _myService;
+//                      If no contructor for Controller:
+//                          Create StringTemplates for Controller with "IMyService myService" as a parameter 
+//                                  and assign parameter to private variable:
+//                              public MyController(IMyService myService)
+//                              {
+//                                  _myService = myService;
+//                              }
+//                      Else:
+//                          Add "IMyService myService" as a parameter to the constructor
+//                          Add line to assign parameter to private variable: "_myService = myService;"
+//                      Use rewriter to insert services.Add[Lifespan] into token stream
+//                      Write parse tree as string to Controller file

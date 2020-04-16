@@ -64,3 +64,24 @@ Install ANTLR extension for Visual Studio (ANTLR VSIX)
 
 Install Antlr4BuildTasks NuGet package:
     Install-Package Antlr4BuildTasks -Version 1.0.9
+
+Install McMaster CommandLineUtils NuGet package:
+    Install-Package McMaster.Extensions.CommandLineUtils -Version 2.5.0
+
+Install Newtonsoft JSON.Net package:
+    Install-Package Newtonsoft.Json
+
+Install Microsoft.Extensions.Hosting.Abstractions.dll
+
+Install Microsoft.Extensions.Hosting NuGet package:
+    Install-Package Microsoft.Extensions.Hosting -Version 3.1.2
+
+    Install-Package Microsoft.Extensions.Configuration
+
+    Install-Package Microsoft.Extensions.Configuration.FileExtensions
+
+    Install-Package Microsoft.Extensions.Configuration.Json
+
+    Install-Package Microsoft.Extensions.Configuration.Binder
+
+    

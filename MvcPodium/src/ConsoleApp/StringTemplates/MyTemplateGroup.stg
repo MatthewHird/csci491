@@ -1,0 +1,5 @@
+﻿// import "CSharp.stg"
+
+UsingSection(usingStatements) ::= <<
+<usingStatements; separator=" YAY!\r\n">
+>>
