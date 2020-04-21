@@ -48,6 +48,7 @@ value_type
 struct_type
     : type_name
     | simple_type
+    | tuple_type
     ;
 
 simple_type 
@@ -81,6 +82,12 @@ floating_point_type
 string_type
     : STRING    //| 'System.String'
     ;
+
+tuple_type: OPEN_PARENS tuple_type_element_list CLOSE_PARENS ;
+    
+tuple_type_element_list: tuple_type_element (COMMA tuple_type_element)+ ;
+    
+tuple_type_element: type_ identifier? ;
 
 enum_type: type_name ;
 
@@ -122,6 +129,7 @@ variable_reference: expression ;
 expression
     : non_assignment_expression
     | assignment
+    | declaration_expression
     ;
 
 constant_expression: expression ;
@@ -135,7 +143,8 @@ argument: argument_name? argument_value ;
 argument_name: identifier COLON ;
 
 argument_value
-    : expression
+    : OUT type_ identifier
+    | expression
     | REF variable_reference
     | OUT variable_reference
     ;
@@ -161,6 +170,7 @@ assignment_operator
     | OP_LEFT_SHIFT_ASSIGNMENT
     | OP_RIGHT_SHIFT_ASSIGNMENT
     | OP_COALESCING_ASSIGNMENT
+    | ASSIGNMENT REF
     ;
 
 conditional_expression: null_coalescing_expression (QUESTION expression COLON expression)? ;
@@ -184,13 +194,89 @@ and_expression: equality_expression (AMP equality_expression)* ;
 
 equality_expression: relational_expression ((OP_EQ | OP_NE)  relational_expression)* ;
 
-relational_expression: shift_expression ((OPEN_ANGLE | CLOSE_ANGLE | OP_LE | OP_GE) shift_expression | (IS | AS) type_)* ;
+relational_expression: shift_expression ((OPEN_ANGLE | CLOSE_ANGLE | OP_LE | OP_GE) shift_expression | (IS | AS) type_ | IS pattern)* ;
+
+pattern
+    : declaration_pattern
+    | constant_pattern
+    | var_pattern
+    | positional_pattern
+    | property_pattern
+    | discard_pattern
+    ;
+
+declaration_pattern: type_ simple_designation ;
+
+constant_pattern: constant_expression ;
+
+var_pattern: VAR designation ;
+
+designation
+    : simple_designation
+    | tuple_designation
+    ;
+
+positional_pattern: type_? OPEN_PARENS subpatterns? CLOSE_PARENS property_subpattern? simple_designation? ;
+
+property_pattern: type_? property_subpattern simple_designation? ;
+
+property_subpattern: OPEN_BRACE subpatterns? CLOSE_BRACE ;
+
+subpatterns: subpattern (COMMA subpattern)* ;
+
+subpattern: (identifier COLON)? pattern ;
+
+simple_designation
+    : single_variable_designation
+    | discard_designation
+    ;
+
+discard_pattern: discard_designation ;
+
+type_pattern: type_ simple_designation ;
+
+declaration_expression: type_ variable_designation ;
+
+variable_designation
+    : single_variable_designation
+    | parenthesized_variable_designation
+    | discard_designation
+    ;
+
+single_variable_designation: identifier ;
+
+parenthesized_variable_designation: OPEN_PARENS variable_designation (COMMA variable_designation)+ CLOSE_PARENS ;
+
+discard_designation: UNDERSCORE ;
+
+tuple_designation: OPEN_PARENS designations? CLOSE_PARENS ;
+
+designations: designation (COMMA designation)* ;
+
+foreach_variable_statement: FOREACH OPEN_PARENS declaration_expression IN expression CLOSE_PARENS embedded_statement ;
 
 shift_expression: additive_expression ((OP_LEFT_SHIFT | OP_RIGHT_SHIFT)  additive_expression)* ;
 
 additive_expression: multiplicative_expression ((PLUS | MINUS)  multiplicative_expression)* ;
 
-multiplicative_expression: unary_expression ((STAR | SLASH | PERCENT) unary_expression)* ;
+multiplicative_expression
+    : switch_expression
+    | range_expression ((STAR | SLASH | PERCENT) range_expression)*
+    ;
+
+switch_expression: range_expression SWITCH OPEN_BRACE (switch_expression_arms COMMA?)? CLOSE_BRACE ;
+
+switch_expression_arms: switch_expression_arm (COMMA switch_expression_arm)* ;
+
+switch_expression_arm: pattern case_guard? OP_ARROW expression ;
+
+range_expression
+    : unary_expression
+    | OP_RANGE
+    | range_expression OP_RANGE
+    | OP_RANGE range_expression
+    | range_expression OP_RANGE range_expression
+    ;
 
 unary_expression
     : primary_expression
@@ -238,7 +324,7 @@ await_expression: AWAIT unary_expression ;
 
 primary_expression  // Null-conditional operators C# 6: https://msdn.microsoft.com/en-us/library/dn986595.aspx
     : pe=primary_expression_start bracket_expression*
-      ((member_access | invocation_expression | OP_INC | OP_DEC | OP_PTR identifier) bracket_expression*)*
+      ((member_access | invocation_expression | OP_INC | OP_DEC | OP_PTR identifier | BANG) bracket_expression*)*
     | array_creation_expression
     ;
 
@@ -262,6 +348,7 @@ primary_expression_start
     | nameof_expression                                                         #nameofExpression_pes
     | delegate_creation_expression                                              #delegateCreationExpression_pes
     | anonymous_object_creation_expression                                      #anonymousObjectCreationExpression_pes
+    | stackalloc_initializer                                                    #stackallocInitializer_pes
     ;
 
 member_access: QUESTION? DOT identifier type_argument_list? ;
@@ -278,7 +365,7 @@ sizeof_expression: SIZEOF OPEN_PARENS unmanaged_type CLOSE_PARENS ;
 
 anonymous_method_expression: DELEGATE explicit_anonymous_function_signature? block ;
 
-default_value_expression: DEFAULT OPEN_PARENS type_ CLOSE_PARENS ;
+default_value_expression: DEFAULT (OPEN_PARENS type_ CLOSE_PARENS)? ;
 
 checked_expression: CHECKED OPEN_PARENS expression CLOSE_PARENS ;
 
@@ -496,6 +583,25 @@ labeled_statement: identifier COLON statement ;
 declaration_statement
     : local_variable_declaration SEMICOLON
     | local_constant_declaration SEMICOLON 
+    | local_function_declaration
+    ;
+
+local_function_declaration
+    : local_function_header local_function_body
+    ;
+
+local_function_header
+    : local_function_modifiers? return_type identifier type_parameter_list?
+      (formal_parameter_list?) type_parameter_constraints_clauses
+    ;
+
+local_function_modifiers
+    : (ASYNC | UNSAFE)
+    ;
+
+ local_function_body
+    : block
+    | OP_ARROW expression SEMICOLON
     ;
 
 local_variable_declaration: local_variable_type local_variable_declarators ;
@@ -512,7 +618,6 @@ local_variable_declarator: identifier (ASSIGNMENT local_variable_initializer)? ;
 local_variable_initializer
     : expression
     | array_initializer
-    | local_variable_initializer_unsafe
     ;
 
 local_constant_declaration: CONST type_ constant_declarators ;
@@ -550,13 +655,16 @@ switch_block: OPEN_BRACE switch_section* CLOSE_BRACE ;
 
 switch_section: switch_label+ statement_list ;
 
-switch_label: (CASE constant_expression | DEFAULT) COLON ;
+switch_label: (CASE (pattern | constant_expression) case_guard? | DEFAULT) COLON ;
+
+case_guard: WHEN expression ;
 
 iteration_statement
     : while_statement
     | do_statement
     | for_statement
     | foreach_statement
+    | foreach_variable_statement
     ;
 
 while_statement: WHILE OPEN_PARENS boolean_expression CLOSE_PARENS embedded_statement ;
@@ -679,11 +787,9 @@ class_modifier
     | class_modifier_unsafe
     ;
 
-type_parameter_list: OPEN_ANGLE type_parameters CLOSE_ANGLE ;
+type_parameter_list: OPEN_ANGLE type_parameter (COMMA type_parameter)* CLOSE_ANGLE ;
 
-type_parameters: attributes? type_parameter (COMMA attributes? type_parameter)* ;
-
-type_parameter: identifier ;
+type_parameter: attributes? identifier ;
 
 class_base
     : COLON class_type
@@ -706,6 +812,7 @@ primary_constraint
     : class_type
     | CLASS
     | STRUCT
+    | CLASS QUESTION
     ;
 
 secondary_constraints: secondary_constraint (COMMA secondary_constraint)* ;
@@ -1063,7 +1170,7 @@ all_member_modifier
 
 struct_declaration
     : attributes? struct_modifier* PARTIAL? STRUCT identifier type_parameter_list?
-      struct_interfaces? type_parameter_constraints_clause* struct_body SEMICOLON?
+      struct_interfaces? type_parameter_constraints_clauses? struct_body SEMICOLON?
     ;
 
 struct_modifier
@@ -1138,13 +1245,20 @@ interface_member_declaration
     ;
 
 interface_method_declaration
-    : attributes? NEW? return_type identifier type_parameter_list
-      OPEN_PARENS formal_parameter_list? CLOSE_PARENS type_parameter_constraints_clause* SEMICOLON
+    : attributes? NEW? return_type identifier type_parameter_list?
+      OPEN_PARENS formal_parameter_list? CLOSE_PARENS type_parameter_constraints_clauses? SEMICOLON
     ;
 
 interface_property_declaration: attributes? NEW? type_ identifier OPEN_BRACE interface_accessors CLOSE_BRACE ;
 
-interface_accessors: attributes? (GET SEMICOLON (attributes? SET SEMICOLON)? | SET SEMICOLON (attributes? GET SEMICOLON)?) ;
+interface_accessors
+    : interface_get_accessor interface_set_accessor? 
+    | interface_set_accessor interface_get_accessor? 
+    ;
+
+interface_get_accessor: attributes? GET SEMICOLON ;
+
+interface_set_accessor: attributes? SET SEMICOLON ;
 
 interface_event_declaration: attributes? NEW? EVENT type_ identifier SEMICOLON ;
 
@@ -1334,9 +1448,10 @@ buffer_element_type: type_ ;
 
 fixed_size_buffer_declarator: identifier OPEN_BRACKET constant_expression CLOSE_BRACKET ;
 
-local_variable_initializer_unsafe: stackalloc_initializer ;
-
-stackalloc_initializer: STACKALLOC unmanaged_type OPEN_BRACKET expression CLOSE_BRACKET ;
+stackalloc_initializer
+    : STACKALLOC unmanaged_type OPEN_BRACKET expression? CLOSE_BRACKET array_initializer?
+    | STACKALLOC OPEN_BRACKET expression? CLOSE_BRACKET array_initializer
+    ;
 
 // B.1.7+ Tokens
 // https://github.com/dotnet/csharplang/blob/master/spec/lexical-structure.md#tokens
@@ -1383,6 +1498,7 @@ literal
     | REAL_LITERAL
     | CHARACTER_LITERAL
     | NULL
+    | tuple_literal
     ;
 
 boolean_literal
@@ -1419,6 +1535,12 @@ interpolated_verbatim_string_part
     ;
 
 interpolated_string_inner_expression: expression (COMMA expression)* (COLON FORMAT_STRING+)? ;
+
+tuple_literal: OPEN_PARENS tuple_literal_element_list CLOSE_PARENS ;
+
+tuple_literal_element_list: tuple_literal_element (COMMA tuple_literal_element)+ ;
+
+tuple_literal_element: ( identifier COLON )? expression ;
 
 // B.1.9 Keywords
 

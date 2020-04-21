@@ -1,5 +1,9 @@
+using Antlr4.Runtime;
 using Antlr4.Runtime.Misc;
 using Antlr4.Runtime.Tree;
+using Microsoft.Extensions.Options;
+using MvcPodium.ConsoleApp.Model.Config;
+using MvcPodium.ConsoleApp.Services;
 using System;
 using System.Collections.Generic;
 using IToken = Antlr4.Runtime.IToken;
@@ -7,8 +11,33 @@ using ParserRuleContext = Antlr4.Runtime.ParserRuleContext;
 
 namespace MvcPodium.ConsoleApp.Visitors
 {
-    public class CSharpVisitor : CSharpParserBaseVisitor<object>
+    public class XServiceInterfaceScraper : CSharpParserBaseVisitor<object>
     {
+        private readonly IOptions<AppSettings> _appSettings;
+        private readonly IOptions<UserSettings> _userSettings;
+        private readonly IStringTemplateService _stringTemplateService;
+
+        public string ServiceRootName { get; }
+
+        public HashSet<string> Imports { set; get; } = new HashSet<string>();
+        public TokenStreamRewriter Rewriter { get; }
+        public BufferedTokenStream Tokens { get; }
+
+        public XServiceInterfaceScraper(
+            BufferedTokenStream tokenStream,
+            string serviceRootName,
+            IOptions<AppSettings> appSettings,
+            IOptions<UserSettings> userSettings,
+            IStringTemplateService stringTemplateService)
+        {
+            _appSettings = appSettings;
+            _userSettings = userSettings;
+            _stringTemplateService = stringTemplateService;
+            Tokens = tokenStream;
+            ServiceRootName = serviceRootName;
+            Rewriter = new TokenStreamRewriter(tokenStream);
+        }
+
         public override object VisitCompilation_unit([NotNull] CSharpParser.Compilation_unitContext context)
         {
             VisitChildren(context);

@@ -1,41 +1,28 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Antlr4.Runtime;
-using Microsoft.Extensions.Options;
-using MvcPodium.ConsoleApp.Model.Config;
+﻿using Antlr4.Runtime;
 using MvcPodium.ConsoleApp.Services;
 
 namespace MvcPodium.ConsoleApp.Visitors
 {
     public interface IServiceInterfaceScraperFactory
     {
-        ServiceInterfaceScraper Create(BufferedTokenStream tokenStream);
+        ServiceInterfaceScraper Create(BufferedTokenStream tokenStream, string serviceName);
     }
 
     public class ServiceInterfaceScraperFactory : IServiceInterfaceScraperFactory
     {
-        private readonly IOptions<AppSettings> _appSettings;
-        private readonly IOptions<UserSettings> _userSettings;
-        private readonly IStringTemplateService _stringTemplateService;
+        private readonly ICSharpParserService _cSharpParserService;
 
-        public ServiceInterfaceScraperFactory(
-            IOptions<AppSettings> appSettings,
-            IOptions<UserSettings> userSettings,
-            IStringTemplateService stringTemplateService)
+        public ServiceInterfaceScraperFactory(ICSharpParserService cSharpParserService)
         {
-            _appSettings = appSettings;
-            _userSettings = userSettings;
-            _stringTemplateService = stringTemplateService;
+            _cSharpParserService = cSharpParserService;
         }
 
-        public ServiceInterfaceScraper Create(BufferedTokenStream tokenStream)
+        public ServiceInterfaceScraper Create(BufferedTokenStream tokenStream, string serviceRootName)
         {
             return new ServiceInterfaceScraper(
                 tokenStream,
-                _appSettings,
-                _userSettings,
-                _stringTemplateService);
+                serviceRootName,
+                _cSharpParserService);
         }
     }
 }

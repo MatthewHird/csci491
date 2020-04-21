@@ -21,6 +21,7 @@ namespace MvcPodium.ConsoleApp.Controller
         private readonly IOptions<AppSettings> _appSettings;
         private readonly IOptions<UserSettings> _userSettings;
         private readonly IStringTemplateService _stringTemplateService;
+        private readonly IServiceInterfaceScraperFactory _serviceInterfaceScraperFactory;
 
         public ServiceCommandController(
             ILogger<MvcPodiumController> logger,
@@ -28,7 +29,8 @@ namespace MvcPodium.ConsoleApp.Controller
             IOptions<ProjectEnvironment> projectEnvironment,
             IOptions<AppSettings> appSettings,
             IOptions<UserSettings> userSettings,
-            IStringTemplateService stringTemplateService)
+            IStringTemplateService stringTemplateService,
+            IServiceInterfaceScraperFactory serviceInterfaceScraperFactory)
         {
             _logger = logger;
             _commandLineArgs = commandLineArgs;
@@ -36,6 +38,7 @@ namespace MvcPodium.ConsoleApp.Controller
             _appSettings = appSettings;
             _userSettings = userSettings;
             _stringTemplateService = stringTemplateService;
+            _serviceInterfaceScraperFactory = serviceInterfaceScraperFactory;
         }
 
         public Task Execute(ServiceCommand serviceCommand)
@@ -49,26 +52,6 @@ namespace MvcPodium.ConsoleApp.Controller
 
             //Console.WriteLine(serviceClassSt.Render());
 
-
-
-
-            var charStream = CharStreams.fromPath(@"D:\Files HDD\Workspace\csci491\MvcPodium\Resources\TestData\Input\FormPhoto.cs");
-            //var charStream = CharStreams.fromString(serviceClassSt.Render());
-            var lexer = new CSharpLexer(charStream);
-            var tokenStream = new CommonTokenStream(lexer);
-            var parser = new CSharpParser(tokenStream);
-            parser.BuildParseTree = true;
-            var tree = parser.compilation_unit();
-
-            _logger.LogInformation(tree.ToStringTree());
-
-
-            //var visitor = new ServiceInterfaceVisitor(tokenStream);
-            //visitor.Visit(tree);
-
-            //File.WriteAllText("TestData/Output/TestFormPhoto.cs", visitor.Rewriter.GetText());
-
-            var x = 1;
 
 
             //using (var outStream = File.Create("TestData/Output/output.txt"))
@@ -98,20 +81,25 @@ namespace MvcPodium.ConsoleApp.Controller
             //          Create folder
             var areaDirectory = serviceCommand.Area is null || serviceCommand.Area.TrimEnd(@"/\ ".ToCharArray()) == "" 
                 ? "" : Path.Combine("Areas", serviceCommand.Area);
-            var sevicesDirectory = Path.Combine(areaDirectory, "Services");
+            var sevicesDirectory = Path.Combine(_commandLineArgs.Value.ProjectRoot, areaDirectory, "Services");
             var subDirectory = Path.Combine(sevicesDirectory, serviceCommand.Subdirectories is null 
                                                               || serviceCommand.Subdirectories.Count == 0 
                                                               ? "" : string.Join('/', serviceCommand.Subdirectories));
             Directory.CreateDirectory(subDirectory);
 
+            string serviceClassFileName = Path.Combine(subDirectory, $"{serviceCommand.ServiceRootName}Service.cs");
+            string serviceInterfaceFileName = Path.Combine(subDirectory, $"I{serviceCommand.ServiceRootName}Service.cs");
 
+            CSharpParserWrapper serviceInterfaceParser = null;
 
             //Check if <service> class file exists: 
-            if(File.Exists(Path.Combine(subDirectory, $"{serviceCommand.ServiceRootName}Service.cs")))
+            if (File.Exists(serviceClassFileName))
             {
                 //  Else:
                 //      Parse <service> class file
                 //          Extract list of existing public method signatures
+
+                
 
             }
             else
@@ -123,12 +111,21 @@ namespace MvcPodium.ConsoleApp.Controller
             }
 
             //Check if <service> interface file exists:
-            if (File.Exists(Path.Combine(subDirectory, $"{serviceCommand.ServiceRootName}Service.cs")))
+            if (File.Exists(serviceInterfaceFileName))
             {
                 //  Else:
                 //      Parse <service> interface file
                 //          Extract list of existing method signatures
 
+                serviceInterfaceParser = new CSharpParserWrapper(serviceInterfaceFileName);
+                var tree = serviceInterfaceParser.GetParseTree();
+
+                var visitor = _serviceInterfaceScraperFactory.Create(serviceInterfaceParser.Tokens, serviceCommand.ServiceRootName);
+                visitor.Visit(tree);
+
+                var x = 1;
+
+                //File.WriteAllText("TestData/Output/TestFormPhoto.cs", visitor.Rewriter.GetText());
             }
             else
             {

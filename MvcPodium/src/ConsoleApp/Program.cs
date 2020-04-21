@@ -1,14 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Reflection;
 
 using McMaster.Extensions.CommandLineUtils;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 
 using MvcPodium.ConsoleApp.Controller;
@@ -143,7 +139,9 @@ namespace MvcPodium.ConsoleApp
 
         }
 
-        public static IConfigurationRoot CreateConfiguration(Dictionary<string, string> inMemConfig, string userSettingsPath = null)
+        public static IConfigurationRoot CreateConfiguration(
+            Dictionary<string, string> inMemConfig, 
+            string userSettingsPath = null)
         {
             IConfigurationBuilder configBuilder = new ConfigurationBuilder();
             configBuilder.AddInMemoryCollection(inMemConfig);
@@ -193,6 +191,8 @@ namespace MvcPodium.ConsoleApp
             serviceCollection.AddTransient<ServiceCommandController, ServiceCommandController>();
             serviceCollection.AddTransient<IStringTemplateService, StringTemplateService>();
             serviceCollection.AddSingleton<IServiceInterfaceScraperFactory, ServiceInterfaceScraperFactory>();
+            serviceCollection.AddSingleton<IXServiceInterfaceScraperFactory, XServiceInterfaceScraperFactory>();
+            serviceCollection.AddSingleton<ICSharpParserService, CSharpParserService>();
 
             serviceCollection.AddTransient<MvcPodiumController, MvcPodiumController>();
             return serviceCollection.BuildServiceProvider();
