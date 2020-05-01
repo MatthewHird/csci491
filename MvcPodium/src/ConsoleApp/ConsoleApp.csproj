@@ -49,7 +49,10 @@
     <None Update="StringTemplates\MyTemplateGroup.stg">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="StringTemplates\Services.stg">
+    <None Update="Model\Config\ServiceCommand.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="StringTemplates\ServiceCommand.stg">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="usersettings.Default.json">

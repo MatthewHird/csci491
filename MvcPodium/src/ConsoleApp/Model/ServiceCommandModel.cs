@@ -4,11 +4,49 @@ using System.Text;
 
 namespace MvcPodium.ConsoleApp.Model
 {
-    public class ClassInterfaceBody
+    public class ServiceClassInterfaceInjectorArguments
     {
-        public List<MethodDeclaration> MethodDeclarations { get; set; } = new List<MethodDeclaration>();
+        // _serviceInterfaceName = serviceInterfaceName;
+        public string ServiceClassInterfaceName { get; set; }
+        // _serviceNamespace = serviceNamespace;
+        public string ServiceNamespace { get; set; }
+        // _usingDirectives = usingDirectives;
+        public List<string> UsingDirectives { get; set; } = new List<string>();
+        // _propertyDeclarations = propertyDeclarations;
+        public List<string> PropertyDeclarations { get; set; } = new List<string>();
+        // _methodDeclarations = methodDeclarations;
+        public List<string> MethodDeclarations { get; set; } = new List<string>();
+    }
 
-        public List<PropertyDeclaration> PropertyDeclarations { get; set; } = new List<PropertyDeclaration>();
+    public class ServiceStartupRegistrationArguments
+    {
+        public string RootNamespace { get; set; }
+        public string ServiceNamespace { get; set; }
+        public string StartupRegistrationCall { get; set; }
+        public ServiceRegistrationInfo ServiceRegistrationInfo { get; set; }
+    }
+
+
+    public class ServiceRegistrationInfo
+    {
+        public string ServiceName { get; set; }
+        public bool HasTypeParameters { get; set; }
+        public string Scope { get; set; }
+    }
+
+    public class ServiceConstructionInjectorArguments
+    {
+        public string ConstructorClassName { get; set; }
+        public string ConstructorClassNamespace { get; set; }
+        public string ServiceIdentifier { get; set; }
+        public string ServiceNamespace { get; set; }
+        public string ServiceInterfaceType { get; set; }
+
+        public string FieldDeclaration { get; set; }
+        public string ConstructorParameter { get; set; }
+        public string ConstructorAssignment { get; set; }
+        public string ConstructorDeclaration { get; set; }
+
     }
 
 
@@ -29,7 +67,7 @@ namespace MvcPodium.ConsoleApp.Model
 
         public bool IsInterface { get; set; } = false;
         // Attributes [attributes?]
-        public string Attributes { get; set; } = "";
+        public string Attributes { get; set; }
 
         // Modifiers [class_modifier*] [interface_modifier*] IsPartial
         public List<string> Modifiers { get; set; } = new List<string>();
@@ -71,6 +109,26 @@ namespace MvcPodium.ConsoleApp.Model
 
         //  interface_event_declaration
         //  interface_indexer_declaration
+
+        public ClassInterfaceDeclaration CopyHeader()
+        {
+            return new ClassInterfaceDeclaration()
+            {
+                IsInterface = IsInterface.Copy(),
+                Attributes = Attributes.Copy(),
+                Modifiers = Modifiers.Copy(),
+                Identifier = Identifier.Copy(),
+                TypeParameters = TypeParameters.Copy(),
+                Base = Base.Copy()
+            };
+        }
+    }
+
+    public class ClassInterfaceBody
+    {
+        public List<MethodDeclaration> MethodDeclarations { get; set; } = new List<MethodDeclaration>();
+
+        public List<PropertyDeclaration> PropertyDeclarations { get; set; } = new List<PropertyDeclaration>();
     }
 
     public class MethodDeclaration
@@ -88,7 +146,7 @@ namespace MvcPodium.ConsoleApp.Model
 
 
         // Attributes [attributes?]
-        public string Attributes { get; set; } = "";
+        public string Attributes { get; set; }
 
         // Modifiers (MethodModifiers) IsNew [method_modifier] IsPartial
         public List<string> Modifiers { get; set; } = new List<string>();
@@ -108,18 +166,7 @@ namespace MvcPodium.ConsoleApp.Model
         public FormalParameterList FormalParameterList { get; set; }
 
         // method_body (string)
-        public string MethodBody { get; set; }
-
-        public List<string> GetTypeParameterList()
-        {
-            var list = new List<string>();
-            foreach (var typeParameter in TypeParameters)
-            {
-                list.Add(typeParameter.TypeParam);
-            }
-            return list;
-        }
-
+        public string Body { get; set; }
     }
 
     public class ClassInterfaceBase
@@ -183,23 +230,71 @@ namespace MvcPodium.ConsoleApp.Model
         // Identifier **Class** [member_name]
         public string Identifier { get; set; }
         
-        public string PropertyBody { get; set; }
+        public PropertyBody Body { get; set; }
+    }
+
+    public class PropertyBody
+    {
+        // [accessor_declarations -> get_accessor_declaration] | [expression]
+        public bool HasGetAccessor { get; set; }
+        
+        // [accessor_declarations -> set_accessor_declaration]
+        public bool HasSetAccessor { get; set; }
+
+        public string Text { get; set; }
+
     }
 
 
     public class ConstructorDeclaration
     {
         // constructor_declaration: attributes? constructor_modifier* constructor_declarator constructor_body ;
-
         // constructor_declarator: identifier OPEN_PARENS formal_parameter_list? CLOSE_PARENS constructor_initializer? ;
-
-        // constructor_initializer: COLON (BASE | THIS) OPEN_PARENS argument_list? CLOSE_PARENS ;
-
-        // argument_list: argument (COMMA argument)* ;
-
-        // constructor_body: block | SEMICOLON ;
+        public string Attributes { get; set; }
+        public List<string> Modifiers { get; set; } = new List<string>();
+        public string Identifier { get; set; }
+        public FormalParameterList FormalParameterList { get; set; }
+        public ConstructorInitializer ConstructorInitializer { get; set; }
+        public ConstructorBody Body { get; set; } = new ConstructorBody();
     }
 
+    public class ConstructorInitializer
+    {
+        // constructor_initializer: COLON (BASE | THIS) OPEN_PARENS argument_list? CLOSE_PARENS ;
+        
+        // IsBase ? "base" : "this";
+        public string IsBase { get; set; }
+        // argument_list: argument (COMMA argument)* ;
+        public List<Argument> Arguments { get; set; } = new List<Argument>();
+    }
+
+
+    public class Argument
+    {
+        //argument: argument_name? argument_value;
+        
+        //argument_name: identifier COLON;
+        public string Name { get; set; }
+        //argument_value: OUT type_ identifier | expression | REF variable_reference | OUT variable_reference ;
+        public string Value { get; set; }
+    }
+
+    public class ConstructorBody
+    {
+        // constructor_body: block | SEMICOLON ;
+        //block: OPEN_BRACE statement_list? CLOSE_BRACE;
+        //statement_list: statement+ ;
+        public List<Statement> Statements { get; set; } = new List<Statement>();
+    }
+
+
+
+    public class Statement
+    {
+        public SimpleAssignment SimpleAssignment { get; set; }
+        // SimpleAssignment != null ? SimpleAssignment : ElseValue
+        public string ElseValue { get; set; }
+    }
 
 
     public class TypeParameter
@@ -207,6 +302,28 @@ namespace MvcPodium.ConsoleApp.Model
         public string TypeParam { get; set; }
         public string VarianceAnnotation { get; set; }
         public List<string> Constraints { get; set; } = new List<string>();
+    }
+
+
+    public class FieldDeclaration
+    {
+        public string Attributes { get; set; }
+        public List<string> Modifiers { get; set; } = new List<string>();
+        public string Type { get; set; }
+        public List<VariableDeclarator> VariableDeclarators { get; set; } = new List<VariableDeclarator>();
+
+    }
+
+    public class VariableDeclarator
+    {
+        public string Identifier { get; set; }
+        public string VariableInitializer { get; set; }
+    }
+
+    public class SimpleAssignment
+    {
+        public string LeftHandSide { get; set; }
+        public string RightHandSide { get; set; }
     }
 
 }

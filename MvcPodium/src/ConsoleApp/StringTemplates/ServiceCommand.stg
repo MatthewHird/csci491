@@ -1,0 +1,180 @@
+﻿
+
+ServiceFile(serviceNamespace, usingDirectives, service) ::= <<
+<usingDirectives:{usingDir|<UsingDirective(usingDir)><\n>}>
+<NamespaceDeclaration(serviceNamespace)>
+{
+    <if(service.IsInterface)><InterfaceDeclaration(service)><else><ClassDeclaration(service)><endif>
+}<\n>
+>>
+
+
+ClassDeclaration(class) ::= <<
+<if(class.Attributes)><class.Attributes><\n><endif><\\>
+<class.Modifiers:{modifier|<modifier> }>class <class.Identifier><\\>
+<TypeParamList(class.TypeParameters)><ClassBase(class.Base)><\\>
+<TypeParamConstraints(class.TypeParameters)><\n><ClassBody(class.Body)>
+>>
+
+
+ClassBase(base) ::= <<
+<if(base)> : <if(base.ClassType)><if(base.InterfaceTypeList)>, <endif><endif><base.InterfaceTypeList; separator=", "><endif>
+>>
+
+
+ClassBody(body) ::= <<
+{<body.MethodDeclarations:{method|<\n>    <ClassMethodDeclaration(method)><\n>}><\\>
+<body.PropertyDeclarations:{property|<\n>    <ClassPropertyDeclaration(property)><\n>}>}
+>>
+
+
+ClassMethodDeclaration(method) ::= <<
+<if(method.Attributes)><method.Attributes><\n><endif><\\>
+<method.Modifiers:{modifier|<modifier> }><method.ReturnType> <method.Identifier><\\>
+<TypeParamList(method.TypeParameters)>(<FormalParameterList(method.FormalParameterList)>)<\\>
+<TypeParamConstraints(method.TypeParameters)><if(method.Body)><\n><method.Body><else><\\>
+<\n>{<\n>    return default;<\n>}<endif>
+>>
+
+
+ClassPropertyDeclaration(property) ::= <<
+<if(property.Attributes)><property.Attributes><\n><endif><\\>
+<property.Modifiers:{modifier|<modifier> }><property.Type> <\\>
+<property.Identifier> <DefaultPropertyBody(property.Body)>
+>>
+
+
+InterfaceDeclaration(interface) ::= <<
+<if(interface.Attributes)><interface.Attributes><\n><endif><\\>
+<interface.Modifiers:{modifier|<modifier> }>interface <interface.Identifier><\\>
+<VariantTypeParamList(interface.TypeParameters)><InterfaceBase(interface.Base)><\\>
+<TypeParamConstraints(interface.TypeParameters)><\n><InterfaceBody(interface.Body)>
+>>
+
+
+InterfaceBase(base) ::= <<
+<if(base && base.InterfaceTypeList)> : <base.InterfaceTypeList; separator=", "><endif>
+>>
+
+
+InterfaceBody(body) ::= <<
+{<body.MethodDeclarations:{method|<\n>    <InterfaceMethodDeclaration(method)><\n>}><\\>
+<body.PropertyDeclarations:{property|<\n>    <InterfacePropertyDeclaration(property)><\n>}>}
+>>
+
+
+InterfaceMethodDeclaration(method) ::= <<
+<if(method.Attributes)><method.Attributes><\n><endif><\\>
+<method.Modifiers:{modifier|<modifier> }><method.ReturnType> <method.Identifier><\\>
+<TypeParamList(method.TypeParameters)>(<FormalParameterList(method.FormalParameterList)>)<\\>
+<TypeParamConstraints(method.TypeParameters)>;
+>>
+
+
+InterfacePropertyDeclaration(property) ::= <<
+<if(property.Attributes)><property.Attributes><\n><endif><\\>
+<property.Modifiers:{modifier|<modifier> }><property.Type> <\\>
+<property.Identifier> <DefaultPropertyBody(property.Body)>
+>>
+
+
+DefaultPropertyBody(propBody) ::= <<
+{ <if(propBody.HasGetAccessor)>get; <endif><if(propBody.HasSetAccessor)>set; <endif>}
+>>
+
+UsingDirective(usingDir) ::= <<
+using <usingDir>;
+>>
+
+NamespaceDeclaration(namespace) ::= <<
+namespace <namespace>
+>>
+
+
+TypeParamList(typeParamList) ::= <<
+<if(typeParamList)>\<<typeParamList:{param|<param.TypeParam>}; separator=", ">\><endif>
+>>
+
+
+VariantTypeParamList(variantTypeParamList) ::= <<
+<if(variantTypeParamList)>\<<variantTypeParamList:{param|<\\>
+<if(param.VarianceAnnotation)><param.VarianceAnnotation> <endif><param.TypeParam>}; separator=", ">\><endif>
+>>
+
+
+TypeParamConstraints(typeParams) ::= <<
+<typeParams:{param|<if(param.Constraints)> where <param.TypeParam> : <param.Constraints; separator=", "><endif>}>
+>>
+
+
+FormalParameterList(formParamList) ::= <<
+<formParamList.FixedParameters:{fixedParam|<\\>
+<FixedParameter(fixedParam)>}; separator=", "><\\>
+<if(formParamList.FixedParameters && formParamList.ParameterArray)>, <endif><\\>
+<if(formParamList.ParameterArray)><ParameterArray(formParamList.ParameterArray)><endif>
+>>
+
+
+FixedParameter(fixedParam) ::= <<
+<if(fixedParam.Attributes)><fixedParam.Attributes> <endif><\\>
+<if(fixedParam.ParameterModifier)><fixedParam.ParameterModifier> <endif><\\>
+<fixedParam.Type> <fixedParam.Identifier><\\>
+<if(fixedParam.DefaultArgument)> = <fixedParam.DefaultArgument><endif>
+>>
+
+
+ParameterArray(paramArray) ::= <<
+<if(paramArray.Attributes)><paramArray.Attributes> <endif><\\>
+params <paramArray.Type> <paramArray.Identifier>
+>>
+
+
+ServiceStartupRegistrationCall(serviceRegistrationInfo) ::= <<
+.Add<serviceRegistrationInfo.Scope><if(serviceRegistrationInfo.HasTypeParameters)><\\>
+(typeof(I<serviceRegistrationInfo.ServiceName>Service\<>), typeof(<serviceRegistrationInfo.ServiceName>Service\<>))<\\>
+<else>\<I<serviceRegistrationInfo.ServiceName>Service, <serviceRegistrationInfo.ServiceName>Service>()<endif>
+>>
+
+
+FieldDeclaration(field) ::= <<
+<if(field.Attributes)><field.Attributes><\n><endif><\\>
+<field.Modifiers:{modifier|<modifier> }><\\>
+<field.Type> <field.VariableDeclarators:{varDec|<VariableDeclarator(varDec)>}; separator=", ">;
+>>
+
+
+VariableDeclarator(varDec) ::= <<
+<varDec.Identifier><if(varDec.VariableInitializer)> = <varDec.VariableInitializer><endif>
+>>
+
+
+SimpleAssignmentStatement(simpleAssignment) ::= <<
+<simpleAssignment.LeftHandSide> = <simpleAssignment.RightHandSide>;
+>>
+
+
+ConstructorDeclaration(constructor) ::= <<
+<if(constructor.Attributes)><constructor.Attributes><\n><endif><\\>
+<constructor.Modifiers:{modifier|<modifier> }><\\>
+<constructor.Identifier>(<FormalParameterList(constructor.FormalParameterList)>)<\\>
+<if(constructor.ConstructorInitializer)> <ConstructorInitializer(constructor.ConstructorInitializer)><endif><\\>
+<\n><ConstructorBody(constructor.Body)>
+>>
+
+ConstructorInitializer(initializer) ::= <<
+: <if(initializer.IsBase)>base<else>this<endif>(<initializer.Arguments:{arg|<Argument(arg)>}; separator=", ">)
+>>
+
+Argument(arg) ::= <<
+<if(arg.Name)><arg.Name>: <endif><arg.Value>
+>>
+
+ConstructorBody(ctorBody) ::= <<
+{
+    <ctorBody.Statements:{statement|<Statement(statement)>}; separator="\n">
+}
+>>
+
+Statement(statement) ::= <<
+<if(statement.SimpleAssignment)><SimpleAssignmentStatement(statement.SimpleAssignment)><else><statement.ElseValue><endif>
+>>

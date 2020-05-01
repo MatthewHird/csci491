@@ -321,12 +321,6 @@ namespace MvcPodium.ConsoleApp.Visitors
             return null;
         }
 
-        public override object VisitNull_conditional_invocation_expression([NotNull] CSharpParser.Null_conditional_invocation_expressionContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
         public override object VisitPre_increment_expression([NotNull] CSharpParser.Pre_increment_expressionContext context)
         {
             VisitChildren(context);
@@ -357,113 +351,6 @@ namespace MvcPodium.ConsoleApp.Visitors
             return null;
         }
 
-        public override object VisitLiteral_pes([NotNull] CSharpParser.Literal_pesContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitInterpolatedStringExpression_pes([NotNull] CSharpParser.InterpolatedStringExpression_pesContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitSimpleName_pes([NotNull] CSharpParser.SimpleName_pesContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitPredefinedName_pes([NotNull] CSharpParser.PredefinedName_pesContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitMemberAccessExpression([NotNull] CSharpParser.MemberAccessExpressionContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitLiteralAccess_pes([NotNull] CSharpParser.LiteralAccess_pesContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitThisAccess_pes([NotNull] CSharpParser.ThisAccess_pesContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitBaseAccess_pes([NotNull] CSharpParser.BaseAccess_pesContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitObjectCreationExpression_pes([NotNull] CSharpParser.ObjectCreationExpression_pesContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitTypeofExpression_pes([NotNull] CSharpParser.TypeofExpression_pesContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitCheckedExpression_pes([NotNull] CSharpParser.CheckedExpression_pesContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitUncheckedExpression_pes([NotNull] CSharpParser.UncheckedExpression_pesContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitDefaultValueExpression_pes([NotNull] CSharpParser.DefaultValueExpression_pesContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitAnonymousMethodExpression_pes([NotNull] CSharpParser.AnonymousMethodExpression_pesContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitSizeofExpression_pes([NotNull] CSharpParser.SizeofExpression_pesContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitNameofExpression_pes([NotNull] CSharpParser.NameofExpression_pesContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitDelegateCreationExpression_pes([NotNull] CSharpParser.DelegateCreationExpression_pesContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitAnonymousObjectCreationExpression_pes([NotNull] CSharpParser.AnonymousObjectCreationExpression_pesContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
 
         public override object VisitMember_access([NotNull] CSharpParser.Member_accessContext context)
         {
@@ -1648,18 +1535,6 @@ namespace MvcPodium.ConsoleApp.Visitors
         }
 
         public override object VisitDestructor_body([NotNull] CSharpParser.Destructor_bodyContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitAll_member_modifiers([NotNull] CSharpParser.All_member_modifiersContext context)
-        {
-            VisitChildren(context);
-            return null;
-        }
-
-        public override object VisitAll_member_modifier([NotNull] CSharpParser.All_member_modifierContext context)
         {
             VisitChildren(context);
             return null;

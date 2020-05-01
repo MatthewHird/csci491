@@ -1,7 +1,7 @@
 ﻿using Antlr4.Runtime;
 using MvcPodium.ConsoleApp.Services;
 
-namespace MvcPodium.ConsoleApp.Visitors
+namespace MvcPodium.ConsoleApp.Visitors.Factories
 {
     public interface IServiceInterfaceScraperFactory
     {

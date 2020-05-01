@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 using MvcPodium.ConsoleApp.Model.Config;
 using MvcPodium.ConsoleApp.Services;
 
-namespace MvcPodium.ConsoleApp.Visitors
+namespace MvcPodium.ConsoleApp.Visitors.Factories
 {
     public interface IXServiceInterfaceScraperFactory
     {
@@ -17,13 +17,13 @@ namespace MvcPodium.ConsoleApp.Visitors
     {
         private readonly IOptions<AppSettings> _appSettings;
         private readonly IOptions<UserSettings> _userSettings;
-        private readonly IStringTemplateService _stringTemplateService;
+        private readonly IServiceCommandStService _stringTemplateService;
         private readonly ICSharpParserService _cSharpParserService;
 
         public XServiceInterfaceScraperFactory(
             IOptions<AppSettings> appSettings,
             IOptions<UserSettings> userSettings,
-            IStringTemplateService stringTemplateService,
+            IServiceCommandStService stringTemplateService,
             ICSharpParserService cSharpParserService)
         {
             _appSettings = appSettings;

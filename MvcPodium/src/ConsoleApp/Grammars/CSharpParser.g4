@@ -29,6 +29,8 @@ namespace_or_type_name
     | qualified_alias_member
     ;
 
+qualified_alias_member: identifier DOUBLE_COLON identifier type_argument_list? ;
+
 // B.2.2 Types
 // https://github.com/dotnet/csharplang/blob/master/spec/types.md
 
@@ -312,8 +314,6 @@ null_conditional_member_access
     | primary_expression null_conditional_operations DOT identifier type_argument_list?
     ;
 
-null_conditional_invocation_expression: primary_expression null_conditional_operations OPEN_PARENS argument_list? CLOSE_PARENS ;
-
 pre_increment_expression: OP_INC unary_expression ;
 
 pre_decrement_expression: OP_DEC unary_expression ;
@@ -324,32 +324,46 @@ await_expression: AWAIT unary_expression ;
 
 primary_expression  // Null-conditional operators C# 6: https://msdn.microsoft.com/en-us/library/dn986595.aspx
     : pe=primary_expression_start bracket_expression*
-      ((member_access | invocation_expression | OP_INC | OP_DEC | OP_PTR identifier | BANG) bracket_expression*)*
+      (continuation_expression bracket_expression*)*
     | array_creation_expression
     ;
 
 primary_expression_start
-    : literal                                                                   #literal_pes
-    | interpolated_string_expression                                            #interpolatedStringExpression_pes
-    | simple_name                                                               #simpleName_pes
-    | parenthesized_expression                                                  #predefinedName_pes
-    | predefined_type                                                           #memberAccessExpression
-    | qualified_alias_member                                                    #memberAccessExpression
-    | LITERAL_ACCESS                                                            #literalAccess_pes
-    | this_access                                                               #thisAccess_pes
-    | base_access                                                               #baseAccess_pes
-    | object_creation_expression                                                #objectCreationExpression_pes
-    | typeof_expression                                                         #typeofExpression_pes
-    | checked_expression                                                        #checkedExpression_pes
-    | unchecked_expression                                                      #uncheckedExpression_pes
-    | default_value_expression                                                  #defaultValueExpression_pes
-    | anonymous_method_expression                                               #anonymousMethodExpression_pes
-    | sizeof_expression                                                         #sizeofExpression_pes
-    | nameof_expression                                                         #nameofExpression_pes
-    | delegate_creation_expression                                              #delegateCreationExpression_pes
-    | anonymous_object_creation_expression                                      #anonymousObjectCreationExpression_pes
-    | stackalloc_initializer                                                    #stackallocInitializer_pes
+    : literal
+    | interpolated_string_expression
+    | simple_name
+    | parenthesized_expression
+    | predefined_type
+    | qualified_alias_member
+    | literal_access
+    | this_access
+    | base_access
+    | object_creation_expression
+    | typeof_expression
+    | checked_expression
+    | unchecked_expression
+    | default_value_expression
+    | anonymous_method_expression
+    | sizeof_expression
+    | nameof_expression
+    | delegate_creation_expression
+    | anonymous_object_creation_expression
+    | stackalloc_initializer
     ;
+
+continuation_expression
+    : member_invocation
+    | member_access 
+    | invocation_list 
+    | OP_INC 
+    | OP_DEC 
+    | OP_PTR identifier 
+    | BANG
+    ;
+
+member_invocation: member_access invocation_list ;
+
+literal_access: LITERAL_ACCESS ;
 
 member_access: QUESTION? DOT identifier type_argument_list? ;
 
@@ -379,7 +393,12 @@ base_access: BASE (DOT identifier type_argument_list? | OPEN_BRACKET expression_
 
 simple_name: identifier type_argument_list? ;
 
-invocation_expression: OPEN_PARENS argument_list? CLOSE_PARENS ;
+invocation_expression
+    : primary_expression member_invocation
+    | primary_expression invocation_list
+    ;
+
+invocation_list: OPEN_PARENS argument_list? CLOSE_PARENS ;
 
 post_increment_expression: primary_expression OP_INC ;
 
@@ -622,7 +641,7 @@ local_variable_initializer
 
 local_constant_declaration: CONST type_ constant_declarators ;
 
-block: OPEN_BRACE statement_list? CLOSE_BRACE ;
+block : OPEN_BRACE statement_list? CLOSE_BRACE ;
 
 statement_list: statement+ ;
 
@@ -632,7 +651,6 @@ expression_statement: statement_expression SEMICOLON ;
 
 statement_expression
     : invocation_expression
-    | null_conditional_invocation_expression
     | object_creation_expression
     | assignment
     | post_increment_expression
@@ -740,17 +758,19 @@ namespace_body: OPEN_BRACE extern_alias_directive* using_directive* namespace_me
 
 extern_alias_directive: EXTERN ALIAS identifier SEMICOLON ;
 
-using_directive
+using_directive: USING using_directive_inner SEMICOLON;
+
+using_directive_inner
     : using_alias_directive
     | using_namespace_directive
     | using_static_directive
     ;
 
-using_alias_directive: USING identifier ASSIGNMENT namespace_or_type_name SEMICOLON ;
+using_alias_directive: identifier ASSIGNMENT namespace_or_type_name ;
 
-using_namespace_directive: USING namespace_or_type_name SEMICOLON ;
+using_namespace_directive: namespace_or_type_name ;
 
-using_static_directive: USING STATIC namespace_or_type_name SEMICOLON ;
+using_static_directive: STATIC namespace_or_type_name ;
 
 namespace_member_declaration
     : namespace_declaration
@@ -764,8 +784,6 @@ type_declaration
     | enum_declaration 
     | delegate_declaration
     ;
-
-qualified_alias_member: identifier DOUBLE_COLON identifier type_argument_list? ;
 
 // B.2.7 Classes
 // https://github.com/dotnet/csharplang/blob/master/spec/classes.md
@@ -824,9 +842,7 @@ secondary_constraint
 
 constructor_constraint: NEW OPEN_PARENS CLOSE_PARENS ;
 
-class_body
-    : OPEN_BRACE class_member_declarations? CLOSE_BRACE
-    ;
+class_body: OPEN_BRACE class_member_declarations? CLOSE_BRACE ;
 
 class_member_declarations: class_member_declaration+ ;
 
@@ -1142,28 +1158,6 @@ destructor_body
     | SEMICOLON
     ;
 
-all_member_modifiers
-    : all_member_modifier+
-    ;
-
-all_member_modifier
-    : NEW
-    | PUBLIC
-    | PROTECTED
-    | INTERNAL
-    | PRIVATE
-    | READONLY
-    | VOLATILE
-    | VIRTUAL
-    | SEALED
-    | OVERRIDE
-    | ABSTRACT
-    | STATIC
-    | UNSAFE
-    | EXTERN
-    | PARTIAL
-    | ASYNC  
-    ;
 
 // B.2.8 Structs
 // https://github.com/dotnet/csharplang/blob/master/spec/structs.md

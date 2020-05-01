@@ -19,6 +19,7 @@ namespace MvcPodium.ConsoleApp
 
         public CSharpParser.Compilation_unitContext GetParseTree()
         {
+            Parser.Reset();
             return Parser.compilation_unit();
         }
     }

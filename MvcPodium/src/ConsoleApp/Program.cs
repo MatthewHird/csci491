@@ -6,12 +6,12 @@ using System.Reflection;
 using McMaster.Extensions.CommandLineUtils;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 using MvcPodium.ConsoleApp.Controller;
 using MvcPodium.ConsoleApp.Model.Config;
 using MvcPodium.ConsoleApp.Services;
-using MvcPodium.ConsoleApp.Visitors;
-using Microsoft.Extensions.Logging;
+using MvcPodium.ConsoleApp.Visitors.Factories;
 
 namespace MvcPodium.ConsoleApp
 {
@@ -162,16 +162,6 @@ namespace MvcPodium.ConsoleApp
         {
             IServiceCollection serviceCollection = new ServiceCollection();
 
-            var loggerFactory = LoggerFactory.Create(builder =>
-            {
-                builder
-                    .AddFilter("Microsoft", LogLevel.Warning)
-                    .AddFilter("System", LogLevel.Warning)
-                    .AddFilter("LoggingConsoleApp.Program", LogLevel.Debug)
-                    .AddConsole()
-                    .AddEventLog();
-            });
-
             serviceCollection.AddSingleton<ILogger<MvcPodiumController>, Logger<MvcPodiumController>>();
             serviceCollection.AddLogging(builder =>
             {
@@ -188,13 +178,22 @@ namespace MvcPodium.ConsoleApp
             serviceCollection.Configure<UserSettings>(config.GetSection("UserSettings"));
             serviceCollection.Configure<ProjectEnvironment>(config.GetSection("ProjectEnvironment"));
 
-            serviceCollection.AddTransient<ServiceCommandController, ServiceCommandController>();
-            serviceCollection.AddTransient<IStringTemplateService, StringTemplateService>();
-            serviceCollection.AddSingleton<IServiceInterfaceScraperFactory, ServiceInterfaceScraperFactory>();
-            serviceCollection.AddSingleton<IXServiceInterfaceScraperFactory, XServiceInterfaceScraperFactory>();
-            serviceCollection.AddSingleton<ICSharpParserService, CSharpParserService>();
-
             serviceCollection.AddTransient<MvcPodiumController, MvcPodiumController>();
+            serviceCollection.AddTransient<ServiceCommandController, ServiceCommandController>();
+            
+            serviceCollection.AddSingleton<IServiceCommandStService, ServiceCommandStService>();
+            serviceCollection.AddSingleton<ICSharpParserService, CSharpParserService>();
+            serviceCollection.AddSingleton<IServiceCommandService, ServiceCommandService>();
+            serviceCollection.AddSingleton<IStringUtilService, StringUtilService>();
+            
+            serviceCollection.AddSingleton<IServiceInterfaceScraperFactory, ServiceInterfaceScraperFactory>();
+            serviceCollection.AddSingleton<IServiceClassScraperFactory, ServiceClassScraperFactory>();
+            serviceCollection.AddSingleton<IServiceInterfaceInjectorFactory, ServiceInterfaceInjectorFactory>();
+            serviceCollection.AddSingleton<IServiceClassInjectorFactory, ServiceClassInjectorFactory>();
+            serviceCollection.AddSingleton<IXServiceInterfaceScraperFactory, XServiceInterfaceScraperFactory>();
+            serviceCollection.AddSingleton<IServiceStartupRegistrationFactory, ServiceStartupRegistrationFactory>();
+            serviceCollection.AddSingleton<IServiceConstructorInjectorFactory, ServiceConstructorInjectorFactory>();
+
             return serviceCollection.BuildServiceProvider();
         }
     }
