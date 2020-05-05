@@ -1,14 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using MvcPodium.ConsoleApp.Model;
+﻿using MvcPodium.ConsoleApp.Models.CSharpCommon;
+using MvcPodium.ConsoleApp.Models.ServiceCommand;
 
 namespace MvcPodium.ConsoleApp.Services
 {
     public interface IServiceCommandService
     {
-        (ServiceCommandScraperResults classMissingResults, ServiceCommandScraperResults interfaceMissingResults)
-            CompareScraperResults(ServiceCommandScraperResults classResults, ServiceCommandScraperResults interfaceResults);
+        (ServiceFile classMissingResults, ServiceFile interfaceMissingResults)
+            CompareScraperResults(ServiceFile classResults, ServiceFile interfaceResults);
 
         ClassInterfaceDeclaration GetInterfaceFromClass(
             ClassInterfaceDeclaration classDeclaration,
@@ -17,5 +15,9 @@ namespace MvcPodium.ConsoleApp.Services
         ClassInterfaceDeclaration GetClassFromInterface(
             ClassInterfaceDeclaration interfaceDeclaration,
             string classIdentifier);
+
+        string GenerateServiceNamespaceDeclaration(
+            string serviceNamespace,
+            ClassInterfaceDeclaration serviceDeclaration);
     }
 }

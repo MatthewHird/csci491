@@ -1,0 +1,221 @@
+﻿
+
+ClassDeclaration(attributes, modifiers, identifier, typeParameters, base, body) ::= <<
+<if(attributes)><attributes><\n><endif><\\>
+<modifiers:{modifier|<modifier> }>class <identifier><\\>
+<TypeParamList(typeParameters)><ClassBase(base.ClassType, base.InterfaceTypeList)><\\>
+<TypeParamConstraints(typeParameters)><\n><@classBody><ClassBody(body.PropertyDeclarations, body.MethodDeclarations)><@end>
+>>
+
+
+ClassBase(classType, interfaceTypeList) ::= <<
+<if(classType || interfaceTypeList)> : <if(classType)><if(interfaceTypeList)>, <endif><endif><interfaceTypeList; separator=", "><endif>
+>>
+
+
+ClassBody(propertyDeclarations, methodDeclarations) ::= <<
+{<propertyDeclarations:{property|<\n>    <
+ClassPropertyDeclaration(
+    property.Attributes,
+    property.Modifiers,
+    property.Type,
+    property.Identifier,
+    property.Body)
+><\n>}><\\>
+<methodDeclarations:{method|<\n>    <
+ClassMethodDeclaration(
+    method.Attributes,
+    method.Modifiers,
+    method.ReturnType,
+    method.Identifier,
+    method.TypeParameters,
+    method.FormalParameterList,
+    method.Body)
+><\n>}>}
+>>
+
+
+ClassMethodDeclaration(attributes, modifiers, returnType, identifier, typeParameters, formalParameterList, body) ::= <<
+<if(attributes)><attributes><\n><endif><\\>
+<modifiers:{modifier|<modifier> }><returnType> <identifier><\\>
+<TypeParamList(typeParameters)>(<
+FormalParameterList(
+    formalParameterList.FixedParameters,
+    formalParameterList.ParameterArray)
+>)<\\>
+<TypeParamConstraints(typeParameters)><if(body)><\n><body><else><\\>
+<\n>{<\n>    return default;<\n>}<endif>
+>>
+
+
+ClassPropertyDeclaration(attributes, modifiers, type, identifier, body) ::= <<
+<if(attributes)><attributes><\n><endif><\\>
+<modifiers:{modifier|<modifier> }><type> <\\>
+<identifier> <DefaultPropertyBody(body.HasGetAccessor, body.HasSetAccessor)>
+>>
+
+
+InterfaceDeclaration(attributes, modifiers, identifier, typeParameters, base, body) ::= <<
+<if(attributes)><attributes><\n><endif><\\>
+<modifiers:{modifier|<modifier> }>interface <identifier><\\>
+<VariantTypeParamList(typeParameters)><InterfaceBase(base.InterfaceTypeList)><\\>
+<TypeParamConstraints(typeParameters)><\n><InterfaceBody(body.PropertyDeclarations, body.MethodDeclarations)>
+>>
+
+
+InterfaceBase(interfaceTypeList) ::= <<
+<if(interfaceTypeList)> : <interfaceTypeList; separator=", "><endif>
+>>
+
+
+InterfaceBody(propertyDeclarations, methodDeclarations) ::= <<
+{<propertyDeclarations:{property|<\n>    <
+InterfacePropertyDeclaration(
+    property.Attributes,
+    property.Modifiers,
+    property.Type,
+    property.Identifier,
+    property.Body)
+><\n>}><\\>
+<methodDeclarations:{method|<\n>    <
+InterfaceMethodDeclaration(
+    method.Attributes,
+    method.Modifiers,
+    method.ReturnType,
+    method.Identifier,
+    method.TypeParameters,
+    method.FormalParameterList)
+><\n>}>}
+>>
+
+
+InterfaceMethodDeclaration(attributes, modifiers, returnType, identifier, typeParameters, formalParameterList) ::= <<
+<if(attributes)><attributes><\n><endif><\\>
+<modifiers:{modifier|<modifier> }><returnType> <identifier><TypeParamList(typeParameters)>(<
+FormalParameterList(
+    formalParameterList.FixedParameters,
+    formalParameterList.ParameterArray)
+>)<TypeParamConstraints(typeParameters)>;
+>>
+
+
+InterfacePropertyDeclaration(attributes, modifiers, type, identifier, body) ::= <<
+<if(attributes)><attributes><\n><endif><\\>
+<modifiers:{modifier|<modifier> }><type> <\\>
+<identifier> <DefaultPropertyBody(body.HasGetAccessor, body.HasSetAccessor)>
+>>
+
+
+DefaultPropertyBody(hasGetAccessor, hasSetAccessor) ::= <<
+{ <if(hasGetAccessor)>get; <endif><if(hasSetAccessor)>set; <endif>}
+>>
+
+
+UsingDirectives(usingDirectives) ::= <<
+<usingDirectives:{usingDirective|<UsingDirective(usingDirective)><\n>}>
+>>
+
+
+UsingDirective(usingDirective) ::= <<
+using <usingDirective>;
+>>
+
+
+NamespaceDeclaration(namespace) ::= <<
+namespace <namespace>
+>>
+
+
+TypeParamList(typeParamList) ::= <<
+<if(typeParamList)>\<<typeParamList:{param|<param.TypeParam>}; separator=", ">\><endif>
+>>
+
+
+VariantTypeParamList(variantTypeParamList) ::= <<
+<if(variantTypeParamList)>\<<variantTypeParamList:{param|<\\>
+<if(param.VarianceAnnotation)><param.VarianceAnnotation> <endif><param.TypeParam>}; separator=", ">\><endif>
+>>
+
+
+TypeParamConstraints(typeParams) ::= <<
+<typeParams:{param|<if(param.Constraints)> where <param.TypeParam> : <param.Constraints; separator=", "><endif>}>
+>>
+
+
+FormalParameterList(fixedParameters, parameterArray) ::= <<
+<fixedParameters:{fixedParam|<\\>
+<FixedParameter(
+    fixedParam.Attributes,
+    fixedParam.ParameterModifier,
+    fixedParam.Type,
+    fixedParam.Identifier,
+    fixedParam.DefaultArgument)
+>}; separator=", "><\\>
+<if(fixedParameters && parameterArray)>, <endif><\\>
+<if(parameterArray)><ParameterArray(
+    parameterArray.attributes,
+    parameterArray.type,
+    parameterArray.identifier)
+><endif>
+>>
+
+
+FixedParameter(attributes, parameterModifier, type, identifier, defaultArgument) ::= <<
+<if(attributes)><attributes> <endif><\\>
+<if(parameterModifier)><parameterModifier> <endif><\\>
+<type> <identifier><\\>
+<if(defaultArgument)> = <defaultArgument><endif>
+>>
+
+
+ParameterArray(attributes, type, identifier) ::= <<
+<if(attributes)><attributes> <endif>params <type> <identifier>
+>>
+
+
+FieldDeclaration(attributes, modifiers, type, variableDeclarators) ::= <<
+<if(attributes)><attributes><\n><endif><\\>
+<modifiers:{modifier|<modifier> }><type> <\\>
+<variableDeclarators:{varDec|<VariableDeclarator(varDec.identifier, varDec.variableInitializer)>}; separator=", ">;
+>>
+
+
+VariableDeclarator(identifier, variableInitializer) ::= <<
+<identifier><if(variableInitializer)> = <variableInitializer><endif>
+>>
+
+
+SimpleAssignmentStatement(leftHandSide, rightHandSide) ::= <<
+<leftHandSide> = <rightHandSide>;
+>>
+
+
+ConstructorDeclaration(attributes, modifiers, identifier, formalParameterList, constructorInitializer, body) ::= <<
+<if(attributes)><attributes><\n><endif><\\>
+<modifiers:{modifier|<modifier> }><\\>
+<identifier>(<FormalParameterList(formalParameterList.fixedParameters, formalParameterList.parameterArray)>)<\\>
+<if(constructorInitializer)> <ConstructorInitializer(constructorInitializer.IsBase, constructorInitializer.Arguments)><endif><\\>
+<\n><ConstructorBody(body.Statements)>
+>>
+
+
+ConstructorInitializer(isBase, arguments) ::= <<
+: <if(isBase)>base<else>this<endif>(<arguments:{arg|<Argument(arg.Name, arg.Value)>}; separator=", ">)
+>>
+
+
+Argument(name, value) ::= <<
+<if(name)><name>: <endif><value>
+>>
+
+
+ConstructorBody(statements) ::= <<
+{
+    <statements:{statement|<Statement(statement.LeftHandSide, statement.RightHandSide)>}; separator="\n">
+}
+>>
+
+
+Statement(simpleAssignment, elseValue) ::= <<
+<if(simpleAssignment)><SimpleAssignmentStatement(simpleAssignment)><else><elseValue><endif>
+>>

@@ -1,26 +1,27 @@
 using Antlr4.Runtime;
 using Antlr4.Runtime.Misc;
-using Antlr4.Runtime.Tree;
-using Microsoft.Extensions.Options;
-using MvcPodium.ConsoleApp.Model;
-using MvcPodium.ConsoleApp.Model.Config;
+using MvcPodium.ConsoleApp.Models.ServiceCommand;
 using MvcPodium.ConsoleApp.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using IToken = Antlr4.Runtime.IToken;
-using ParserRuleContext = Antlr4.Runtime.ParserRuleContext;
 
 namespace MvcPodium.ConsoleApp.Visitors
 {
     public class ServiceInterfaceInjector : CSharpParserBaseVisitor<object>
     {
         private readonly IStringUtilService _stringUtilService;
-        private readonly Stack<string> _currentNamespace;
+        private readonly ICSharpParserService _cSharpParserService;
+        private readonly IServiceCommandService _serviceCommandService;
 
-        private readonly ServiceClassInterfaceInjectorArguments _serviceInjectorArgs;
+        private readonly string _serviceClassInterfaceName;
+        private readonly ServiceFile _serviceFile;
+        private readonly string _tabString;
+
+        private bool _hasServiceNamespace;
+        private bool _hasServiceInterface;
+
+        private readonly Stack<string> _currentNamespace;
 
         public bool Success { get; private set; }
 
@@ -28,32 +29,52 @@ namespace MvcPodium.ConsoleApp.Visitors
         public BufferedTokenStream Tokens { get; }
 
         public ServiceInterfaceInjector(
+            IStringUtilService stringUtilService,
+            ICSharpParserService cSharpParserService,
+            IServiceCommandService serviceCommandService,
             BufferedTokenStream tokenStream,
-            ServiceClassInterfaceInjectorArguments serviceInjectorArgs,
-            IStringUtilService stringUtilService)
+            string serviceClassInterfaceName,
+            ServiceFile serviceFile,
+            string tabString = null)
         {
             _stringUtilService = stringUtilService;
+            _cSharpParserService = cSharpParserService;
+            _serviceCommandService = serviceCommandService;
             Tokens = tokenStream;
             Rewriter = new TokenStreamRewriter(tokenStream);
-            _serviceInjectorArgs = serviceInjectorArgs;
+            _serviceClassInterfaceName = serviceClassInterfaceName;
+            _serviceFile = serviceFile;
+            _tabString = tabString;
             _currentNamespace = new Stack<string>();
-        }
+            _hasServiceNamespace = false;
+            _hasServiceInterface = false;
+    }
 
         public override object VisitCompilation_unit([NotNull] CSharpParser.Compilation_unitContext context)
         {
             Success = false;
-            IToken usingStopIndex = context?.using_directive()?.LastOrDefault()?.Stop
-                ?? context?.extern_alias_directive()?.LastOrDefault()?.Stop
-                ?? context?.BYTE_ORDER_MARK()?.Symbol
-                ?? context.Start;
+            _hasServiceNamespace = false;
+            _hasServiceInterface = false;
 
-            var usingString = usingStopIndex.Equals(context.Start) ? "" : "\r\n\r\n";
-            usingString += _serviceInjectorArgs.UsingDirectives.Count > 0 
-                ? string.Join("\r\n", $"using {_serviceInjectorArgs.UsingDirectives};") : "";
+            var usingStopIndex = _cSharpParserService.GetUsingStopIndex(context);
 
-            Rewriter.InsertAfter(usingStopIndex, usingString);
+            var usingDirectivesStr = _cSharpParserService.GenerateUsingDirectives(
+                _serviceFile.UsingDirectives,
+                usingStopIndex.Equals(context.Start));
+
+            Rewriter.InsertAfter(usingStopIndex, usingDirectivesStr);
 
             VisitChildren(context);
+
+            if (!_hasServiceNamespace)
+            {
+                var namespaceStopIndex = _cSharpParserService.GetNamespaceStopIndex(context);
+                var serviceNamespaceDeclaration = _serviceCommandService.GenerateServiceNamespaceDeclaration(
+                    _serviceFile.ServiceNamespace,
+                    _serviceFile.ServiceDeclaration);
+                Rewriter.InsertAfter(namespaceStopIndex, serviceNamespaceDeclaration);
+            }
+
             Success = true;
             return null;
         }
@@ -66,85 +87,127 @@ namespace MvcPodium.ConsoleApp.Visitors
             return null;
         }
 
+        public override object VisitNamespace_body([NotNull] CSharpParser.Namespace_bodyContext context)
+        {
+            var isServiceNamespace = GetCurrentNamespace() == _serviceFile.ServiceNamespace;
+            if (isServiceNamespace)
+            {
+                _hasServiceNamespace = true;
+            }
+
+            VisitChildren(context);
+
+            if (!_hasServiceInterface && isServiceNamespace)
+            {
+                var classInterfaceStopIndex = _cSharpParserService.GetClassInterfaceStopIndex(context);
+
+                var preclassWhitespace = Tokens.GetHiddenTokensToLeft(context.Start.TokenIndex, Lexer.Hidden);
+                int tabLevels = 1 + (preclassWhitespace.Count > 0 ?
+                    _stringUtilService.CalculateTabLevels(preclassWhitespace[0].Text, _tabString) : 0);
+
+                var interfaceDeclaration = _cSharpParserService.GenerateClassInterfaceDeclaration(
+                    _serviceFile.ServiceDeclaration,
+                    tabLevels,
+                    _tabString);
+
+                Rewriter.InsertAfter(classInterfaceStopIndex, interfaceDeclaration);
+            }
+
+            return null;
+        }
+
         public override object VisitInterface_declaration([NotNull] CSharpParser.Interface_declarationContext context)
         {
-            //Rewriter.InsertAfter(x.Stop, whitespace + serviceClass);
-            var currentNamespace = string.Join(".", _currentNamespace.ToArray().Reverse());
-            
-            if (context.identifier().GetText() == _serviceInjectorArgs.ServiceClassInterfaceName 
-                && currentNamespace == _serviceInjectorArgs.ServiceNamespace)
+            var typeParameters = _serviceFile.ServiceDeclaration.TypeParameters;
+
+            bool isTypeParamsMatch = true;
+            var variantTypeParameters = context?.variant_type_parameter_list()?.variant_type_parameter();
+            if (!(variantTypeParameters is null && (typeParameters is null || typeParameters.Count == 0)))
             {
-                string tabString = "    ";
+                if ((variantTypeParameters?.Length ?? 0) != (typeParameters?.Count ?? 0))
+                {
+                    isTypeParamsMatch = false;
+                }
+                else
+                {
+                    for (int i = 0; i < variantTypeParameters.Length; ++i)
+                    {
+                        if (variantTypeParameters[i].identifier().GetText() != typeParameters[i].TypeParam)
+                        {
+                            isTypeParamsMatch = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (context.identifier().GetText() == _serviceClassInterfaceName
+                && GetCurrentNamespace() == _serviceFile.ServiceNamespace
+                && isTypeParamsMatch)
+            {
+                _hasServiceInterface = true;
                 var preclassWhitespace = Tokens.GetHiddenTokensToLeft(context.Start.TokenIndex, Lexer.Hidden);
 
                 int tabLevels = 1 + (preclassWhitespace.Count > 0 ? 
-                    _stringUtilService.CalculateTabLevels(preclassWhitespace[0].Text, tabString) : 0);
+                    _stringUtilService.CalculateTabLevels(preclassWhitespace[0].Text, _tabString) : 0);
 
-                CSharpParser.Interface_method_declarationContext finalMethod = null;
-                CSharpParser.Interface_property_declarationContext finalProperty = null;
+                int?finalMethod = null;
+                int? finalProperty = null;
                 var members = context?.interface_body()?.interface_member_declaration();
                 foreach (var member in members)
                 {
                     if (member.interface_method_declaration() != null)
                     {
-                        finalMethod = member.interface_method_declaration();
+                        finalMethod = member?.interface_method_declaration()?.Stop?.TokenIndex;
                     }
                     else if (member.interface_property_declaration() != null)
                     {
-                        finalProperty = member.interface_property_declaration();
+                        finalProperty = member?.interface_property_declaration()?.Stop?.TokenIndex;
                     }
                 }
 
-                IToken propertyStopIndex = finalProperty?.Stop ?? context.interface_body().OPEN_BRACE().Symbol;
+                int propertyStopIndex = finalProperty
+                    ?? context.interface_body().OPEN_BRACE().Symbol.TokenIndex;
 
-                var propertyStringBuilder = new StringBuilder();
+                var propertyString = _cSharpParserService.GeneratePropertyDeclarations(
+                    _serviceFile.ServiceDeclaration.Body.PropertyDeclarations,
+                    tabLevels,
+                    _tabString,
+                    true);
 
-                if (_serviceInjectorArgs.PropertyDeclarations != null 
-                    && _serviceInjectorArgs.PropertyDeclarations.Count > 0)
+                int? methodStopIndex = finalMethod;
+
+                var methodString = _cSharpParserService.GenerateMethodDeclarations(
+                    _serviceFile.ServiceDeclaration.Body.MethodDeclarations,
+                    tabLevels,
+                    _tabString,
+                    true);
+
+                if (methodStopIndex is null)
                 {
-                    propertyStringBuilder.Append("\r\n");
-                    foreach (var property in _serviceInjectorArgs.PropertyDeclarations)
-                    {
-                        propertyStringBuilder.Append("\r\n");
-                        propertyStringBuilder.Append(_stringUtilService.TabString(property, tabLevels, tabString));
-                        propertyStringBuilder.Append("\r\n");
-                    }
+                    propertyString += methodString;
                 }
-
-                IToken methodStopIndex = finalMethod?.Stop;
-                var methodStringBuilder = finalMethod is null
-                    ? propertyStringBuilder : new StringBuilder();
-
-                if (_serviceInjectorArgs.MethodDeclarations != null 
-                    && _serviceInjectorArgs.MethodDeclarations.Count > 0)
+                else
                 {
-                    methodStringBuilder.Append("\r\n");
-                    foreach (var method in _serviceInjectorArgs.MethodDeclarations)
+                    if (methodString.Length > 0)
                     {
-                        methodStringBuilder.Append("\r\n");
-                        methodStringBuilder.Append(_stringUtilService.TabString(method, tabLevels, tabString));
-                        methodStringBuilder.Append("\r\n");
+                        Rewriter.InsertAfter(Tokens.Get(methodStopIndex ?? -1), methodString);
                     }
                 }
 
-                var propertyString = propertyStringBuilder.ToString();
                 if (propertyString.Length > 0)
                 {
                     Rewriter.InsertAfter(propertyStopIndex, propertyString);
                 }
 
-                if (methodStopIndex != null)
-                {
-                    var methodString = methodStringBuilder.ToString();
-                    if (methodString.Length > 0)
-                    {
-                        Rewriter.InsertAfter(methodStopIndex, methodString);
-                    }
-                }
-
             }
             VisitChildren(context);
             return null;
+        }
+
+        private string GetCurrentNamespace()
+        {
+            return string.Join(".", _currentNamespace.ToArray().Reverse());
         }
     }
 }

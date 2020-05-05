@@ -1,36 +1,35 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using MvcPodium.ConsoleApp.Model;
+﻿using System.Collections.Generic;
+using MvcPodium.ConsoleApp.Models;
+using MvcPodium.ConsoleApp.Models.CSharpCommon;
 
 namespace MvcPodium.ConsoleApp.Services
 {
-    public interface IServiceCommandStService
+    public interface ICSharpCommonStgService
     {
-        string RenderServiceFile(
-            string serviceNamespace = null,
-            List<string> usingDirectives = null,
-            ClassInterfaceDeclaration service = null);
-
-        string RenderTypeParamList(List<TypeParameter> typeParamList = null);
+        string RenderClassDeclaration(ClassInterfaceDeclaration classDeclaration = null);
 
         string RenderClassMethodDeclaration(MethodDeclaration method = null);
 
         string RenderClassPropertyDeclaration(PropertyDeclaration property = null);
 
+        string RenderInterfaceDeclaration(ClassInterfaceDeclaration interfaceDeclaration = null);
+
         string RenderInterfaceMethodDeclaration(MethodDeclaration method = null);
 
         string RenderInterfacePropertyDeclaration(PropertyDeclaration property = null);
 
-        string RenderServiceStartupRegistrationCall(ServiceRegistrationInfo serviceRegistrationInfo = null);
-
         string RenderFieldDeclaration(FieldDeclaration field = null);
+
+        string RenderTypeParamList(List<TypeParameter> typeParamList = null);
 
         string RenderFixedParameter(FixedParameter fixedParam = null);
 
         string RenderSimpleAssignment(SimpleAssignment simpleAssignment = null);
-        
+
         string RenderConstructorDeclaration(ConstructorDeclaration constructor = null);
 
+        string RenderUsingDirectives(List<string> usingDirectives = null);
+        
+        string RenderUsingDirective(string usingDirective = null);
     }
 }

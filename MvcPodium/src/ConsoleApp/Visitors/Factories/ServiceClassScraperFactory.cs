@@ -1,11 +1,16 @@
-﻿using Antlr4.Runtime;
+﻿using System.Collections.Generic;
+using Antlr4.Runtime;
+using MvcPodium.ConsoleApp.Models.CSharpCommon;
 using MvcPodium.ConsoleApp.Services;
 
 namespace MvcPodium.ConsoleApp.Visitors.Factories
 {
     public interface IServiceClassScraperFactory
     {
-        ServiceClassScraper Create(BufferedTokenStream tokenStream, string serviceName);
+        ServiceClassScraper Create(BufferedTokenStream tokenStream,
+            string serviceClassName,
+            string serviceNamespace,
+            List<TypeParameter> typeParameters);
     }
 
     public class ServiceClassScraperFactory : IServiceClassScraperFactory
@@ -17,12 +22,18 @@ namespace MvcPodium.ConsoleApp.Visitors.Factories
             _cSharpParserService = cSharpParserService;
         }
 
-        public ServiceClassScraper Create(BufferedTokenStream tokenStream, string serviceRootName)
+        public ServiceClassScraper Create(
+            BufferedTokenStream tokenStream, 
+            string serviceClassName,
+            string serviceNamespace,
+            List<TypeParameter> typeParameters)
         {
             return new ServiceClassScraper(
+                _cSharpParserService,
                 tokenStream,
-                serviceRootName,
-                _cSharpParserService);
+                serviceClassName,
+                serviceNamespace,
+                typeParameters);
         }
     }
 }

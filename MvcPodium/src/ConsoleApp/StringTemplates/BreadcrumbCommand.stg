@@ -1,0 +1,64 @@
+﻿import "CSharpCommon.stg"
+
+
+BreadcrumbServiceFile(usingDirectives, breadcrumbNamespace, breadcrumbClass) ::= <<
+<["SmartBreadcrumbs.Nodes", usingDirectives]:{usingDir|<UsingDirective(usingDir)><\n>}>
+<NamespaceDeclaration(breadcrumbNamespace)>
+{
+    <BreadcrumbClass(breadcrumbClass)>
+}<\n>
+>>
+
+
+@ClassDeclaration.classBody() ::= <<
+<BreadcrumbBody(
+    body.FieldDeclarations,
+    body.ConstructorDeclaration,
+    body.BreadcrumbMethods)>
+>>
+
+
+BreadcrumbBody(fieldDeclarations, constructorDeclaration, breadcrumbMethods) ::= <<
+{<if(fieldDeclarations)><fieldDeclarations:{field|<\n>    <
+FieldDeclaration(
+    field.Attributes,
+    field.Modifiers,
+    field.Type,
+    field.VariableDeclarators)
+>}><\n><endif><\\>
+<if(constructorDeclaration)><\n>    <
+ConstructorDeclaration(
+    constructorDeclaration.Attributes,
+    constructorDeclaration.Modifiers,
+    constructorDeclaration.Identifier,
+    constructorDeclaration.FormalParameterList,
+    constructorDeclaration.ConstructorInitializer,
+    constructorDeclaration.Body)
+><\n><endif><\\>
+<breadcrumbMethods:{method|<\n>    <
+BreadcrumbMethod(
+    method.ControllerRoot,
+    method.Action,
+    method.HasId,
+    method.Controller,
+    method.ControllerNamePattern)
+><\n>}>}
+>>
+
+
+BreadcrumbMethod(controllerRoot, action, hasId, controller, controllerNamePattern) ::= <<
+public MvcBreadcrumbNode <controllerRoot><action>Breadcrumb(<if(hasId)>int? id<endif>)
+{
+    return new MvcBreadcrumbNode(nameof(<controller>.<action>), <controllerNamePattern>, "<<controller>.<action>>")
+    {
+        Parent = null<if(hasId)>,
+        RouteValues = new { id }<endif>
+    };
+}
+>>
+// ControllerNamePattern:
+//      _controllerService.GetRootName\<<controller>>()
+
+BreadcrumbAssignment(controllerRoot, action, hasId) ::= <<
+ViewData["BreadcrumbNode"] = _breadcrumbService.<controllerRoot><action>Breadcrumb(<if(hasId)>id<endif>);
+>>

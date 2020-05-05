@@ -1,6 +1,5 @@
-﻿using System.Collections.Generic;
-using Antlr4.Runtime;
-using MvcPodium.ConsoleApp.Model;
+﻿using Antlr4.Runtime;
+using MvcPodium.ConsoleApp.Models.CSharpCommon;
 using MvcPodium.ConsoleApp.Services;
 
 namespace MvcPodium.ConsoleApp.Visitors.Factories
@@ -9,26 +8,61 @@ namespace MvcPodium.ConsoleApp.Visitors.Factories
     {
         public ServiceConstructorInjector Create(
             BufferedTokenStream tokenStream,
-            ServiceConstructionInjectorArguments constructionInjectionArgs);
+            string constructorClassName,
+            string constructorClassNamespace,
+            string serviceIdentifier,
+            string serviceNamespace,
+            string serviceInterfaceType,
+            FieldDeclaration fieldDeclaration,
+            FixedParameter constructorParameter,
+            SimpleAssignment constructorAssignment,
+            ConstructorDeclaration constructorDeclaration,
+            string tabString = null);
     }
 
     public class ServiceConstructorInjectorFactory : IServiceConstructorInjectorFactory
     {
         private readonly IStringUtilService _stringUtilService;
+        private readonly ICSharpParserService _cSharpParserService;
+        private readonly ICSharpCommonStgService _cSharpCommonStgService;
         public ServiceConstructorInjectorFactory(
-            IStringUtilService stringUtilService)
+            IStringUtilService stringUtilService,
+            ICSharpParserService cSharpParserService,
+            ICSharpCommonStgService cSharpCommonStgService)
         {
             _stringUtilService = stringUtilService;
+            _cSharpParserService = cSharpParserService;
+            _cSharpCommonStgService = cSharpCommonStgService;
         }
 
         public ServiceConstructorInjector Create(
             BufferedTokenStream tokenStream,
-            ServiceConstructionInjectorArguments constructionInjectionArgs)
+            string constructorClassName,
+            string constructorClassNamespace,
+            string serviceIdentifier,
+            string serviceNamespace,
+            string serviceInterfaceType,
+            FieldDeclaration fieldDeclaration,
+            FixedParameter constructorParameter,
+            SimpleAssignment constructorAssignment,
+            ConstructorDeclaration constructorDeclaration,
+            string tabString = null)
         {
             return new ServiceConstructorInjector(
+                _stringUtilService,
+                _cSharpParserService,
+                _cSharpCommonStgService,
                 tokenStream,
-                constructionInjectionArgs,
-                _stringUtilService);
+                constructorClassName,
+                constructorClassNamespace,
+                serviceIdentifier,
+                serviceNamespace,
+                serviceInterfaceType,
+                fieldDeclaration,
+                constructorParameter,
+                constructorAssignment,
+                constructorDeclaration,
+                tabString);
         }
     }
 }

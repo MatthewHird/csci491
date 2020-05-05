@@ -1,57 +1,66 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using MvcPodium.ConsoleApp.Model;
 using MvcPodium.ConsoleApp.Constants.CSharpGrammar;
+using MvcPodium.ConsoleApp.Models.CSharpCommon;
+using MvcPodium.ConsoleApp.Models.ServiceCommand;
 
 namespace MvcPodium.ConsoleApp.Services
 {
     public class ServiceCommandService : IServiceCommandService
     {
         private readonly IStringUtilService _stringUtilService;
-        private readonly IServiceCommandStService _stringTemplateService;
+        private readonly ICSharpCommonStgService _cSharpCommonStgService;
+        private readonly IServiceCommandStgService _serviceCommandStgService;
 
         public ServiceCommandService(
             IStringUtilService stringUtilService,
-            IServiceCommandStService stringTemplateService)
+            ICSharpCommonStgService cSharpCommonStgService,
+            IServiceCommandStgService serviceCommandStgService)
         {
             _stringUtilService = stringUtilService;
-            _stringTemplateService = stringTemplateService;
+            _cSharpCommonStgService = cSharpCommonStgService;
+            _serviceCommandStgService = serviceCommandStgService;
         }
 
-        public (ServiceCommandScraperResults classMissingResults, ServiceCommandScraperResults interfaceMissingResults)
-            CompareScraperResults(
-                ServiceCommandScraperResults classResults,
-                ServiceCommandScraperResults interfaceResults)
+        public (ServiceFile classMissingResults, ServiceFile interfaceMissingResults)
+            CompareScraperResults(ServiceFile classResults, ServiceFile interfaceResults)
         {
-            var classBody = classResults.ClassInterfaceDeclaration.Body;
-            var interfaceBody = interfaceResults.ClassInterfaceDeclaration.Body;
-
-            var classMissingResults = new ServiceCommandScraperResults()
+            var classMissingResults = new ServiceFile()
             {
+                ServiceNamespace = classResults.ServiceNamespace,
                 UsingDirectives = GetMissingStrings(
-                    classResults.UsingDirectives, interfaceResults.UsingDirectives).ToList(),
-                ClassInterfaceDeclaration = classResults.ClassInterfaceDeclaration.CopyHeader()
+                    classResults.UsingDirectives, interfaceResults.UsingDirectives).ToList()
             };
-
-            classMissingResults.ClassInterfaceDeclaration.Body.MethodDeclarations =
-                GetMissingMethodDeclarations(classBody.MethodDeclarations, interfaceBody.MethodDeclarations);
-
-            classMissingResults.ClassInterfaceDeclaration.Body.PropertyDeclarations =
-                GetMissingPropertyDeclarations(classBody.PropertyDeclarations, interfaceBody.PropertyDeclarations);
-
-            var interfaceMissingResults = new ServiceCommandScraperResults()
+            
+            var interfaceMissingResults = new ServiceFile()
             {
-                UsingDirectives = 
-                    GetMissingStrings(interfaceResults.UsingDirectives, classResults.UsingDirectives).ToList(),
-                ClassInterfaceDeclaration = interfaceResults.ClassInterfaceDeclaration.CopyHeader()
+                ServiceNamespace = interfaceResults.ServiceNamespace,
+                UsingDirectives =
+                    GetMissingStrings(interfaceResults.UsingDirectives, classResults.UsingDirectives).ToList()
             };
 
-            interfaceMissingResults.ClassInterfaceDeclaration.Body.MethodDeclarations =
-                GetMissingMethodDeclarations(interfaceBody.MethodDeclarations, classBody.MethodDeclarations);
+            if (classResults.ServiceDeclaration != null && interfaceResults.ServiceDeclaration != null)
+            {
+                var interfaceBody = interfaceResults?.ServiceDeclaration?.Body ?? new ClassInterfaceBody();
+                var classBody = classResults?.ServiceDeclaration?.Body ?? new ClassInterfaceBody();
 
-            interfaceMissingResults.ClassInterfaceDeclaration.Body.PropertyDeclarations =
-                GetMissingPropertyDeclarations(interfaceBody.PropertyDeclarations, classBody.PropertyDeclarations);
+                classMissingResults.ServiceDeclaration = classResults.ServiceDeclaration.CopyHeader();
+
+                classMissingResults.ServiceDeclaration.Body.MethodDeclarations =
+                    GetMissingMethodDeclarations(classBody.MethodDeclarations, interfaceBody.MethodDeclarations);
+
+                classMissingResults.ServiceDeclaration.Body.PropertyDeclarations =
+                    GetMissingPropertyDeclarations(classBody.PropertyDeclarations, interfaceBody.PropertyDeclarations);
+
+                interfaceMissingResults.ServiceDeclaration = interfaceResults.ServiceDeclaration.CopyHeader();
+
+                interfaceMissingResults.ServiceDeclaration.Body.MethodDeclarations =
+                    GetMissingMethodDeclarations(interfaceBody.MethodDeclarations, classBody.MethodDeclarations);
+
+                interfaceMissingResults.ServiceDeclaration.Body.PropertyDeclarations =
+                    GetMissingPropertyDeclarations(interfaceBody.PropertyDeclarations, classBody.PropertyDeclarations);
+            }
 
             return (classMissingResults, interfaceMissingResults);
         }
@@ -138,7 +147,7 @@ namespace MvcPodium.ConsoleApp.Services
             };
             classDeclaration.Base.InterfaceTypeList.Add(
                 interfaceDeclaration.Identifier
-                    + _stringTemplateService.RenderTypeParamList(classDeclaration.TypeParameters)
+                    + _cSharpCommonStgService.RenderTypeParamList(classDeclaration.TypeParameters)
             );
             foreach (var typeParam in classDeclaration.TypeParameters)
             {
@@ -186,11 +195,28 @@ namespace MvcPodium.ConsoleApp.Services
             return classDeclaration;
         }
 
+        public string GenerateServiceNamespaceDeclaration(
+            string serviceNamespace,
+            ClassInterfaceDeclaration serviceDeclaration)
+        {
+            return "\r\n\r\n" +
+                _serviceCommandStgService.RenderServiceNamespaceDeclaration(
+                    serviceNamespace,
+                    serviceDeclaration);
+        }
+
 
         private HashSet<string> GetMissingStrings(IEnumerable<string> set1, IEnumerable<string> set2)
         {
+            if (set2 is null)
+            {
+                return new HashSet<string>();
+            }
             var missing = new HashSet<string>(set2);
-            missing.ExceptWith(set1);
+            if (set1 != null)
+            {
+                missing.ExceptWith(set1);
+            }
             return missing;
         }
 
@@ -198,8 +224,16 @@ namespace MvcPodium.ConsoleApp.Services
             IEnumerable<MethodDeclaration> set1,
             IEnumerable<MethodDeclaration> set2)
         {
-
             var missing = new List<MethodDeclaration>();
+            if (set2 is null)
+            {
+                return missing;
+            }
+            if (set1 is null)
+            {
+                return set2.Copy().ToList();
+            }
+
             foreach (var item2 in set2)
             {
                 bool isMissing = true;
@@ -225,6 +259,15 @@ namespace MvcPodium.ConsoleApp.Services
             IEnumerable<PropertyDeclaration> set2)
         {
             var missing = new List<PropertyDeclaration>();
+            if (set2 is null)
+            {
+                return missing;
+            }
+            if (set1 is null)
+            {
+                return set2.Copy().ToList();
+            }
+
             foreach (var item2 in set2)
             {
                 bool isMissing = true;

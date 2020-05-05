@@ -1,17 +1,12 @@
 using Antlr4.Runtime;
 using Antlr4.Runtime.Misc;
-using Antlr4.Runtime.Tree;
-using Microsoft.Extensions.Options;
-using MvcPodium.ConsoleApp.Model;
-using MvcPodium.ConsoleApp.Model.Config;
 using MvcPodium.ConsoleApp.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
-using IToken = Antlr4.Runtime.IToken;
-using ParserRuleContext = Antlr4.Runtime.ParserRuleContext;
 using MvcPodium.ConsoleApp.Constants.CSharpGrammar;
+using MvcPodium.ConsoleApp.Models.CSharpCommon;
+using MvcPodium.ConsoleApp.Models.ServiceCommand;
 
 namespace MvcPodium.ConsoleApp.Visitors
 {
@@ -19,33 +14,44 @@ namespace MvcPodium.ConsoleApp.Visitors
     {
         private readonly ICSharpParserService _cSharpParserService;
         private readonly Stack<string> _currentNamespace;
+        private readonly string _serviceNamespace;
 
-        public string ServiceRootName { get; }
+        public string ServiceClassName { get; }
+        public List<TypeParameter> TypeParameters { get; }
 
-        public ServiceCommandScraperResults Results { get; } 
+        public ServiceFile Results { get; } 
         public TokenStreamRewriter Rewriter { get; }
         public BufferedTokenStream Tokens { get; }
 
+        public bool HasServiceClass { get; private set; }
+
         public ServiceClassScraper(
+            ICSharpParserService cSharpParserService,
             BufferedTokenStream tokenStream,
-            string serviceRootName,
-            ICSharpParserService cSharpParserService)
+            string serviceClassName,
+            string serviceNamespace,
+            List<TypeParameter> typeParameters)
         {
             _cSharpParserService = cSharpParserService;
             Tokens = tokenStream;
-            ServiceRootName = serviceRootName;
+            ServiceClassName = serviceClassName;
+            TypeParameters = typeParameters;
+            _serviceNamespace = serviceNamespace;
             Rewriter = new TokenStreamRewriter(tokenStream);
-            Results = new ServiceCommandScraperResults();
+            Results = new ServiceFile();
             _currentNamespace = new Stack<string>();
+            HasServiceClass = false;
         }
 
         public override object VisitCompilation_unit([NotNull] CSharpParser.Compilation_unitContext context)
         {
+            HasServiceClass = false;
+            Results.ServiceNamespace = _serviceNamespace;
             foreach (var usingDirective in context.using_directive())
             {
                 Results.UsingDirectives.Add(
                     _cSharpParserService.GetTextWithWhitespaceMinifiedLite(
-                        usingDirective.using_directive_inner(), Tokens));
+                        Tokens, usingDirective.using_directive_inner()));
             }
             VisitChildren(context);
             return null;
@@ -61,20 +67,41 @@ namespace MvcPodium.ConsoleApp.Visitors
 
         public override object VisitClass_declaration([NotNull] CSharpParser.Class_declarationContext context)
         {
-            Match idMatch = Regex.Match(context.identifier().GetText(), $"^{Regex.Escape(ServiceRootName)}Service$");
-            if (idMatch.Success)
+            bool matchNames = context.identifier().GetText() == ServiceClassName;
+            bool isTypeParamsMatch = true;
+            var typeParams = context?.type_parameter_list()?.type_parameter();
+            if (!(typeParams is null && (TypeParameters is null || TypeParameters.Count == 0)))
             {
-                Results.Namespace = string.Join(".", _currentNamespace.ToArray().Reverse());
-                var className = idMatch.Value;
+                if ((typeParams?.Length ?? 0) != (TypeParameters?.Count ?? 0))
+                {
+                    isTypeParamsMatch = false;
+                }
+                else
+                {
+                    for (int i = 0; i < typeParams.Length; ++i)
+                    {
+                        if (typeParams[i].identifier().GetText() != TypeParameters[i].TypeParam)
+                        {
+                            isTypeParamsMatch = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (matchNames && isTypeParamsMatch)
+            {
+                HasServiceClass = true;
+                Results.ServiceNamespace = string.Join(".", _currentNamespace.ToArray().Reverse());
                 var classDeclaration = new ClassInterfaceDeclaration()
                 {
                     IsInterface = false,
-                    Attributes = _cSharpParserService.GetTextWithWhitespace(context?.attributes(), Tokens),
-                    Identifier = className
+                    Attributes = _cSharpParserService.GetTextWithWhitespace(Tokens, context?.attributes()),
+                    Identifier = ServiceClassName
                 };
 
                 //Results.ClassInterfaceDeclarations.Add(className, classDeclaration);
-                Results.ClassInterfaceDeclaration = classDeclaration;
+                Results.ServiceDeclaration = classDeclaration;
 
                 if (context?.PARTIAL()?.GetText() != null)
                 {
@@ -97,7 +124,7 @@ namespace MvcPodium.ConsoleApp.Visitors
                     _cSharpParserService.ParseTypeParameterList(Tokens, typeParameters, constraintsClauses);
 
                 var baseClassType = _cSharpParserService.GetTextWithWhitespaceMinifiedLite(
-                    context?.class_base()?.class_type(), Tokens);
+                    Tokens, context?.class_base()?.class_type());
                 var interfaceTypes = context?.class_base()?.interface_type_list()?.interface_type();
                 if (interfaceTypes != null || baseClassType != null)
                 {
@@ -112,7 +139,7 @@ namespace MvcPodium.ConsoleApp.Visitors
                         foreach (var interfaceType in interfaceTypes)
                         {
                             classDeclaration.Base.InterfaceTypeList.Add(
-                                _cSharpParserService.GetTextWithWhitespaceMinifiedLite(interfaceType, Tokens));
+                                _cSharpParserService.GetTextWithWhitespaceMinifiedLite(Tokens, interfaceType));
                         }
 
                     }
@@ -132,12 +159,12 @@ namespace MvcPodium.ConsoleApp.Visitors
                             var methodDeclaration = new MethodDeclaration()
                             {
                                 Attributes = _cSharpParserService.GetTextWithWhitespace(
-                                    classMethodDeclaration?.method_header()?.attributes(), Tokens),
+                                    Tokens, classMethodDeclaration?.method_header()?.attributes()),
                                 ReturnType = _cSharpParserService.GetTextWithWhitespaceMinifiedLite(
-                                    classMethodDeclaration.method_header().return_type(), Tokens),
+                                    Tokens, classMethodDeclaration.method_header().return_type()),
                                 Identifier = classMethodDeclaration.method_header().member_name().GetText(),
                                 Body = _cSharpParserService.GetTextWithWhitespaceUntab(
-                                    classMethodDeclaration.method_body(), Tokens)
+                                    Tokens, classMethodDeclaration.method_body())
                             };
 
                             var methodModifiers = classMethodDeclaration?.method_header()?.method_modifier();
@@ -177,14 +204,14 @@ namespace MvcPodium.ConsoleApp.Visitors
                             var propertyDeclaration = new PropertyDeclaration()
                             {
                                 Attributes = _cSharpParserService.GetTextWithWhitespace(
-                                    classPropertyDeclaration?.attributes(), Tokens),
+                                    Tokens, classPropertyDeclaration?.attributes()),
                                 Type = _cSharpParserService.GetTextWithWhitespaceMinifiedLite(
-                                    classPropertyDeclaration.type_(), Tokens),
+                                    Tokens, classPropertyDeclaration.type_()),
                                 Identifier = classPropertyDeclaration.member_name().GetText(),
                                 Body = new PropertyBody()
                                 {
                                     Text = _cSharpParserService.GetTextWithWhitespaceUntab(
-                                        classPropertyDeclaration.property_body(), Tokens),
+                                        Tokens, classPropertyDeclaration.property_body()),
                                     HasGetAccessor = classPropertyDeclaration.property_body().expression() != null
                                                    | classPropertyDeclaration.property_body()
                                                                              ?.accessor_declarations()

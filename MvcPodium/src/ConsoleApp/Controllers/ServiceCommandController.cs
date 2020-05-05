@@ -1,16 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using MvcPodium.ConsoleApp.Model.Config;
+using MvcPodium.ConsoleApp.Models.Config;
 using System.IO;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Threading.Tasks;
 using MvcPodium.ConsoleApp.Services;
-using MvcPodium.ConsoleApp.Model;
 using MvcPodium.ConsoleApp.Constants.CSharpGrammar;
 using MvcPodium.ConsoleApp.Visitors.Factories;
-
+using MvcPodium.ConsoleApp.Models.CSharpCommon;
+using MvcPodium.ConsoleApp.Models.ServiceCommand;
 
 namespace MvcPodium.ConsoleApp.Controller
 {
@@ -19,9 +19,9 @@ namespace MvcPodium.ConsoleApp.Controller
         private readonly ILogger<MvcPodiumController> _logger;
         private readonly IOptions<CommandLineArgs> _commandLineArgs;
         private readonly IOptions<ProjectEnvironment> _projectEnvironment;
-        private readonly IOptions<AppSettings> _appSettings;
         private readonly IOptions<UserSettings> _userSettings;
-        private readonly IServiceCommandStService _stringTemplateService;
+        private readonly ICSharpCommonStgService _cSharpCommonStgService;
+        private readonly IServiceCommandStgService _serviceCommandStgService;
         private readonly IServiceInterfaceScraperFactory _serviceInterfaceScraperFactory;
         private readonly IServiceClassScraperFactory _serviceClassScraperFactory;
         private readonly IServiceInterfaceInjectorFactory _serviceInterfaceInjectorFactory;
@@ -34,9 +34,9 @@ namespace MvcPodium.ConsoleApp.Controller
             ILogger<MvcPodiumController> logger,
             IOptions<CommandLineArgs> commandLineArgs,
             IOptions<ProjectEnvironment> projectEnvironment,
-            IOptions<AppSettings> appSettings,
             IOptions<UserSettings> userSettings,
-            IServiceCommandStService stringTemplateService,
+            ICSharpCommonStgService cSharpCommonStgService,
+            IServiceCommandStgService serviceCommandStgService,
             IServiceInterfaceScraperFactory serviceInterfaceScraperFactory,
             IServiceClassScraperFactory serviceClassScraperFactory,
             IServiceInterfaceInjectorFactory serviceInterfaceInjectorFactory,
@@ -48,9 +48,9 @@ namespace MvcPodium.ConsoleApp.Controller
             _logger = logger;
             _commandLineArgs = commandLineArgs;
             _projectEnvironment = projectEnvironment;
-            _appSettings = appSettings;
             _userSettings = userSettings;
-            _stringTemplateService = stringTemplateService;
+            _cSharpCommonStgService = cSharpCommonStgService;
+            _serviceCommandStgService = serviceCommandStgService;
             _serviceInterfaceScraperFactory = serviceInterfaceScraperFactory;
             _serviceClassScraperFactory = serviceClassScraperFactory;
             _serviceInterfaceInjectorFactory = serviceInterfaceInjectorFactory;
@@ -111,11 +111,57 @@ namespace MvcPodium.ConsoleApp.Controller
 
             }
 
+            var className = $"{serviceCommand.ServiceRootName}Service";
+            var interfaceName = $"I{serviceCommand.ServiceRootName}Service";
+
+            ConsolidateServiceClassAndInterface(
+                serviceClassName: className,
+                serviceInterfaceName: interfaceName,
+                typeParameters: serviceCommand.TypeParameters,
+                serviceClassFilePath: serviceClassFilePath,
+                serviceInterfaceFilePath: serviceInterfaceFilePath,
+                serviceNamespace: serviceNamespace,
+                serviceRootName: serviceCommand.ServiceRootName,
+                outServiceClassFilePath: testOutServiceClassFilePath,
+                outServiceInterfaceFilePath: testOutServiceInterfaceFilePath);
+
+            RegisterServiceInStartup(
+                serviceRootName: serviceCommand.ServiceRootName,
+                typeParameters: serviceCommand.TypeParameters,
+                serviceLifespan: serviceCommand.Lifespan.ToString(),
+                serviceNamespace: serviceNamespace);
+
+            //Inject Service into Controllers
+            //  For each Controller in Service.Controllers:
+            foreach (var controller in serviceCommand.Controllers)
+            {
+                InjectServiceIntoClassConstructors(
+                    controller: controller,
+                    className: className,
+                    interfaceName: interfaceName,
+                    serviceNamespace: serviceNamespace);
+            }
+
+            return Task.CompletedTask;
+        }
+
+
+        private void ConsolidateServiceClassAndInterface(
+            string serviceClassName,
+            string serviceInterfaceName,
+            List<TypeParameter> typeParameters,
+            string serviceClassFilePath,
+            string serviceInterfaceFilePath,
+            string serviceNamespace,
+            string serviceRootName,
+            string outServiceClassFilePath,
+            string outServiceInterfaceFilePath)
+        {
             CSharpParserWrapper serviceClassParser = null;
             CSharpParserWrapper serviceInterfaceParser = null;
 
-            ServiceCommandScraperResults classScraperResults = null;
-            ServiceCommandScraperResults interfaceScraperResults = null;
+            ServiceFile classScraperResults = null;
+            ServiceFile interfaceScraperResults = null;
 
             //Check if <service> class file exists: 
             if (File.Exists(serviceClassFilePath))
@@ -127,8 +173,11 @@ namespace MvcPodium.ConsoleApp.Controller
                 serviceClassParser = new CSharpParserWrapper(serviceClassFilePath);
                 var tree = serviceClassParser.GetParseTree();
 
-                var visitor = _serviceClassScraperFactory.Create(serviceClassParser.Tokens, 
-                                                                 serviceCommand.ServiceRootName);
+                var visitor = _serviceClassScraperFactory.Create(
+                    serviceClassParser.Tokens,
+                    serviceClassName,
+                    serviceNamespace,
+                    typeParameters);
                 visitor.Visit(tree);
                 classScraperResults = visitor.Results;
             }
@@ -143,14 +192,14 @@ namespace MvcPodium.ConsoleApp.Controller
                 serviceInterfaceParser = new CSharpParserWrapper(serviceInterfaceFilePath);
                 var tree = serviceInterfaceParser.GetParseTree();
 
-                var visitor = _serviceInterfaceScraperFactory.Create(serviceInterfaceParser.Tokens, 
-                                                                     serviceCommand.ServiceRootName);
+                var visitor = _serviceInterfaceScraperFactory.Create(
+                    serviceInterfaceParser.Tokens,
+                    serviceInterfaceName,
+                    serviceNamespace,
+                    typeParameters);
                 visitor.Visit(tree);
                 interfaceScraperResults = visitor.Results;
             }
-
-            var className = $"{serviceCommand.ServiceRootName}Service";
-            var interfaceName = $"I{serviceCommand.ServiceRootName}Service";
 
             if (classScraperResults is null && interfaceScraperResults is null)
             {
@@ -159,20 +208,20 @@ namespace MvcPodium.ConsoleApp.Controller
                 var classDeclaration = new ClassInterfaceDeclaration()
                 {
                     IsInterface = false,
-                    Identifier = className,
-                    TypeParameters = serviceCommand.TypeParameters.Copy(),
+                    Identifier = serviceClassName,
+                    TypeParameters = typeParameters.Copy(),
                     Base = new ClassInterfaceBase()
                 };
                 classDeclaration.Modifiers.Add(Keywords.Public);
-                
+
                 classDeclaration.Base.InterfaceTypeList.Add(
-                    interfaceName + _stringTemplateService.RenderTypeParamList(serviceCommand.TypeParameters.Copy())
+                    serviceInterfaceName + _cSharpCommonStgService.RenderTypeParamList(typeParameters.Copy())
                 );
 
-                using (var outStream = File.Create(serviceClassFilePath))
+                using (var outStream = File.Create(outServiceClassFilePath))
                 {
                     outStream.Write(Encoding.UTF8.GetBytes(
-                        _stringTemplateService.RenderServiceFile(
+                        _serviceCommandStgService.RenderServiceFile(
                             serviceNamespace: serviceNamespace,
                             service: classDeclaration
                         )
@@ -185,15 +234,15 @@ namespace MvcPodium.ConsoleApp.Controller
                 var interfaceDeclaration = new ClassInterfaceDeclaration()
                 {
                     IsInterface = true,
-                    Identifier = interfaceName,
-                    TypeParameters = serviceCommand.TypeParameters.Copy()
+                    Identifier = serviceInterfaceName,
+                    TypeParameters = typeParameters.Copy()
                 };
                 interfaceDeclaration.Modifiers.Add(Keywords.Public);
 
-                using (var outStream = File.Create(serviceInterfaceFilePath))
+                using (var outStream = File.Create(outServiceInterfaceFilePath))
                 {
                     outStream.Write(Encoding.UTF8.GetBytes(
-                        _stringTemplateService.RenderServiceFile(
+                        _serviceCommandStgService.RenderServiceFile(
                             serviceNamespace: serviceNamespace,
                             service: classDeclaration
                         )
@@ -203,46 +252,106 @@ namespace MvcPodium.ConsoleApp.Controller
             }
             else if (classScraperResults is null)
             {
+                //var classDeclaration = new ClassInterfaceDeclaration()
+                //{
+                //    IsInterface = false,
+                //    Identifier = serviceClassName,
+                //    TypeParameters = typeParameters.Copy(),
+                //    Base = new ClassInterfaceBase()
+                //};
+
                 //      Create <service> class file
                 //      Create serviceClass StringTemplate using interfaceScraperResults
 
+                if (interfaceScraperResults.ServiceDeclaration is null)
+                {
+                    interfaceScraperResults.ServiceDeclaration = new ClassInterfaceDeclaration()
+                    {
+                        IsInterface = true,
+                        Identifier = serviceInterfaceName,
+                        TypeParameters = typeParameters.Copy(),
+                        Base = new ClassInterfaceBase()
+                    };
+
+                    var tree = serviceInterfaceParser.GetParseTree();
+                    var visitor = _serviceInterfaceInjectorFactory.Create(
+                        serviceInterfaceParser.Tokens,
+                        serviceClassInterfaceName: serviceInterfaceName,
+                        serviceFile: interfaceScraperResults,
+                        tabString: _userSettings.Value.TabString
+                    );
+                    visitor.Visit(tree);
+                    var siiSuccess = visitor.Success;
+
+                    using (var outStream = File.Create(outServiceInterfaceFilePath))
+                    {
+                        outStream.Write(Encoding.UTF8.GetBytes(visitor.Rewriter.GetText()));
+                        outStream.Flush();
+                    }
+                }
+
                 var classDeclaration = _serviceCommandService.GetClassFromInterface(
-                    interfaceScraperResults.ClassInterfaceDeclaration,
-                    className
+                    interfaceScraperResults.ServiceDeclaration,
+                    serviceClassName
                 );
 
-                using (var outStream = File.Create(serviceClassFilePath))
+                using (var outStream = File.Create(outServiceClassFilePath))
                 {
                     outStream.Write(Encoding.UTF8.GetBytes(
-                        _stringTemplateService.RenderServiceFile(
-                            serviceNamespace: serviceNamespace,
+                        _serviceCommandStgService.RenderServiceFile(
                             usingDirectives: interfaceScraperResults.UsingDirectives,
+                            serviceNamespace: serviceNamespace,
                             service: classDeclaration
                         )
                     ));
                     outStream.Flush();
                 }
 
-                Console.WriteLine(
-                    
-                );
             }
             else if (interfaceScraperResults is null)
             {
                 //      Create <service> interface file
                 //      Create serviceInterface StringTemplate using classScraperResults
+                if (classScraperResults.ServiceDeclaration is null)
+                {
+                    classScraperResults.ServiceDeclaration = new ClassInterfaceDeclaration()
+                    {
+                        IsInterface = false,
+                        Identifier = serviceClassName,
+                        TypeParameters = typeParameters.Copy(),
+                        Base = new ClassInterfaceBase()
+                    };
+                    classScraperResults.ServiceDeclaration.Base.InterfaceTypeList.Add(
+                        serviceInterfaceName + _cSharpCommonStgService.RenderTypeParamList(typeParameters));
+
+                    var tree = serviceClassParser.GetParseTree();
+                    var visitor = _serviceClassInjectorFactory.Create(
+                        tokenStream: serviceClassParser.Tokens,
+                        serviceClassInterfaceName: serviceClassName,
+                        serviceFile: classScraperResults,
+                        tabString: _userSettings.Value.TabString
+                    );
+                    visitor.Visit(tree);
+                    var sciSuccess = visitor.Success;
+
+                    using (var outStream = File.Create(outServiceClassFilePath))
+                    {
+                        outStream.Write(Encoding.UTF8.GetBytes(visitor.Rewriter.GetText()));
+                        outStream.Flush();
+                    }
+                }
 
                 var interfaceDeclaration = _serviceCommandService.GetInterfaceFromClass(
-                    classScraperResults.ClassInterfaceDeclaration,
-                    interfaceName
+                    classScraperResults.ServiceDeclaration,
+                    serviceInterfaceName
                 );
 
-                using (var outStream = File.Create(serviceInterfaceFilePath))
+                using (var outStream = File.Create(outServiceInterfaceFilePath))
                 {
                     outStream.Write(Encoding.UTF8.GetBytes(
-                        _stringTemplateService.RenderServiceFile(
-                            serviceNamespace: serviceNamespace,
+                        _serviceCommandStgService.RenderServiceFile(
                             usingDirectives: classScraperResults.UsingDirectives,
+                            serviceNamespace: serviceNamespace,
                             service: interfaceDeclaration
                         )
                     ));
@@ -253,11 +362,49 @@ namespace MvcPodium.ConsoleApp.Controller
             {
                 //Compare lists of method signatures between interface and class
                 (var classMissingResults, var interfaceMissingResults) =
-                    _serviceCommandService.CompareScraperResults(classScraperResults, interfaceScraperResults);
-                
+                    _serviceCommandService.CompareScraperResults(
+                        classScraperResults,
+                        interfaceScraperResults);
+
+                if (classScraperResults.ServiceDeclaration is null 
+                    && interfaceScraperResults.ServiceDeclaration is null)
+                {
+                    classMissingResults.ServiceDeclaration = new ClassInterfaceDeclaration()
+                    {
+                        IsInterface = false,
+                        Modifiers = new List<string>() { Keywords.Public },
+                        Identifier = serviceClassName,
+                        TypeParameters = typeParameters.Copy(),
+                        Base = new ClassInterfaceBase()
+                    };
+                    classMissingResults.ServiceDeclaration.Base.InterfaceTypeList.Add(
+                        serviceInterfaceName + _cSharpCommonStgService.RenderTypeParamList(typeParameters));
+
+                    interfaceMissingResults.ServiceDeclaration = new ClassInterfaceDeclaration()
+                    {
+                        IsInterface = true,
+                        Modifiers = new List<string>() { Keywords.Public },
+                        Identifier = serviceClassName,
+                        TypeParameters = typeParameters.Copy()
+                    };
+                }
+                else if (classScraperResults.ServiceDeclaration is null)
+                {
+                    classMissingResults.ServiceDeclaration = _serviceCommandService.GetClassFromInterface(
+                        interfaceScraperResults.ServiceDeclaration, serviceClassName);
+                    interfaceMissingResults.ServiceDeclaration = interfaceScraperResults.ServiceDeclaration.CopyHeader();
+                }
+                else if (interfaceScraperResults.ServiceDeclaration is null)
+                {
+                    interfaceMissingResults.ServiceDeclaration = _serviceCommandService.GetInterfaceFromClass(
+                        classScraperResults.ServiceDeclaration, serviceInterfaceName);
+                    classMissingResults.ServiceDeclaration = classScraperResults.ServiceDeclaration.CopyHeader();
+                }
+
                 //  If methods in interface that aren't in class:
-                if (classMissingResults.ClassInterfaceDeclaration.Body.MethodDeclarations.Count > 0
-                    | classMissingResults.ClassInterfaceDeclaration.Body.PropertyDeclarations.Count > 0)
+                if (classScraperResults.ServiceDeclaration is null
+                    | classMissingResults.ServiceDeclaration.Body.MethodDeclarations.Count > 0
+                    | classMissingResults.ServiceDeclaration.Body.PropertyDeclarations.Count > 0)
                 {
                     //  Create list of methods in interface that aren't in class
                     //  Add missing methods to class
@@ -265,41 +412,17 @@ namespace MvcPodium.ConsoleApp.Controller
                     //      Parse class and use rewriter to insert methods into parse tree
                     //      Write parse tree as string to class file
 
-                    var properties = classMissingResults.ClassInterfaceDeclaration.Body.PropertyDeclarations;
-                    var methods = classMissingResults.ClassInterfaceDeclaration.Body.MethodDeclarations;
-
-                    var propertyDeclarations = new List<string>();
-                    var methodDeclarations = new List<string>();
-
-                    foreach (var property in properties)
-                    {
-                        propertyDeclarations.Add(_stringTemplateService.RenderClassPropertyDeclaration(property));
-                    }
-
-                    foreach (var method in methods)
-                    {
-                        methodDeclarations.Add(_stringTemplateService.RenderClassMethodDeclaration(method));
-                    }
-
-                    var classInjectorArgs = new ServiceClassInterfaceInjectorArguments()
-                    {
-                        ServiceClassInterfaceName = $"{serviceCommand.ServiceRootName}Service",
-                        ServiceNamespace = classScraperResults.Namespace,
-                        UsingDirectives = classMissingResults.UsingDirectives,
-                        PropertyDeclarations = propertyDeclarations,
-                        MethodDeclarations = methodDeclarations
-                    };
-
                     var tree = serviceClassParser.GetParseTree();
                     var visitor = _serviceClassInjectorFactory.Create(
-                        serviceClassParser.Tokens,
-                        classInjectorArgs
+                        tokenStream: serviceClassParser.Tokens,
+                        serviceClassInterfaceName: serviceClassName,
+                        serviceFile: classMissingResults,
+                        tabString: _userSettings.Value.TabString
                     );
                     visitor.Visit(tree);
-                    var siiSuccess = visitor.Success;
+                    var sciSuccess = visitor.Success;
 
-                    //using (var outStream = File.Create(outServiceClassFilePath))
-                    using (var outStream = File.Create(testOutServiceClassFilePath))
+                    using (var outStream = File.Create(outServiceClassFilePath))
                     {
                         outStream.Write(Encoding.UTF8.GetBytes(visitor.Rewriter.GetText()));
                         outStream.Flush();
@@ -307,49 +430,27 @@ namespace MvcPodium.ConsoleApp.Controller
 
                 }
                 //  If methods in class that are not in interface:
-                if (interfaceMissingResults.ClassInterfaceDeclaration.Body.MethodDeclarations.Count > 0
-                    | interfaceMissingResults.ClassInterfaceDeclaration.Body.PropertyDeclarations.Count > 0)
+                if (interfaceScraperResults.ServiceDeclaration is null
+                    | interfaceMissingResults.ServiceDeclaration.Body.MethodDeclarations.Count > 0
+                    | interfaceMissingResults.ServiceDeclaration.Body.PropertyDeclarations.Count > 0)
                 {
                     //  Create list of methods in class that are not in interface
                     //  Add missing methods to interface
                     //      Create StringTemplate for each method
                     //      Parse interface and use rewriter to insert methods into parse tree
                     //      Write parse tree as string to interface file
-                    var properties = interfaceMissingResults.ClassInterfaceDeclaration.Body.PropertyDeclarations;
-                    var methods = interfaceMissingResults.ClassInterfaceDeclaration.Body.MethodDeclarations;
-
-                    var propertyDeclarations = new List<string>();
-                    var methodDeclarations = new List<string>();
-
-                    foreach (var property in properties)
-                    {
-                        propertyDeclarations.Add(_stringTemplateService.RenderInterfacePropertyDeclaration(property));
-                    }
-
-                    foreach (var method in methods)
-                    {
-                        methodDeclarations.Add(_stringTemplateService.RenderInterfaceMethodDeclaration(method));
-                    }
-
-                    var interfaceInjectorArgs = new ServiceClassInterfaceInjectorArguments()
-                    {
-                        ServiceClassInterfaceName = $"I{serviceCommand.ServiceRootName}Service",
-                        ServiceNamespace = interfaceScraperResults.Namespace,
-                        UsingDirectives = interfaceMissingResults.UsingDirectives,
-                        PropertyDeclarations = propertyDeclarations,
-                        MethodDeclarations = methodDeclarations
-                    };
 
                     var tree = serviceInterfaceParser.GetParseTree();
                     var visitor = _serviceInterfaceInjectorFactory.Create(
                         serviceInterfaceParser.Tokens,
-                        interfaceInjectorArgs
+                        serviceClassInterfaceName: serviceInterfaceName,
+                        serviceFile: interfaceMissingResults,
+                        tabString: _userSettings.Value.TabString
                     );
                     visitor.Visit(tree);
                     var siiSuccess = visitor.Success;
 
-                    //using (var outStream = File.Create(outServiceInterfaceFilePath))
-                    using (var outStream = File.Create(testOutServiceInterfaceFilePath))
+                    using (var outStream = File.Create(outServiceInterfaceFilePath))
                     {
                         outStream.Write(Encoding.UTF8.GetBytes(visitor.Rewriter.GetText()));
                         outStream.Flush();
@@ -357,20 +458,19 @@ namespace MvcPodium.ConsoleApp.Controller
 
                 }
             }
+        }
 
-            var serviceRegistrationInfo = new ServiceRegistrationInfo()
-            {
-                ServiceName = serviceCommand.ServiceRootName,
-                HasTypeParameters = serviceCommand.TypeParameters != null && serviceCommand.TypeParameters.Count > 0,
-                Scope = serviceCommand.Lifespan.ToString()
-            };
-            var startupRegistrationCall = _stringTemplateService.RenderServiceStartupRegistrationCall(
-                serviceRegistrationInfo);
 
+        private void RegisterServiceInStartup(
+            string serviceRootName,
+            List<TypeParameter> typeParameters,
+            string serviceLifespan,
+            string serviceNamespace)
+        {
             var startupFilepath = Path.Combine(_commandLineArgs.Value.ProjectRoot, "Startup.cs");
             var testStartupFilepath = Path.Combine(_commandLineArgs.Value.ProjectRoot, "XStartup.cs");
             //Check if Startup.cs exists
-            if (!File.Exists(startupFilepath)) 
+            if (!File.Exists(startupFilepath))
             {
                 _logger.LogError($"Startup file does not exist at path {startupFilepath}");
                 //  If !exists:
@@ -383,17 +483,14 @@ namespace MvcPodium.ConsoleApp.Controller
                 var startupParser = new CSharpParserWrapper(startupFilepath);
                 var startupTree = startupParser.GetParseTree();
 
-                var serviceRegistrationArgs = new ServiceStartupRegistrationArguments()
-                {
-                    RootNamespace = _projectEnvironment.Value.RootNamespace,
-                    ServiceNamespace = serviceNamespace,
-                    StartupRegistrationCall = startupRegistrationCall,
-                    ServiceRegistrationInfo = serviceRegistrationInfo
-                };
-
                 var serviceStartupRegistration = _serviceStartupRegistrationFactory.Create(
                     startupParser.Tokens,
-                    serviceRegistrationArgs);
+                    rootNamespace: _projectEnvironment.Value.RootNamespace,
+                    serviceNamespace: serviceNamespace,
+                    serviceName: serviceRootName,
+                    hasTypeParameters: typeParameters != null && typeParameters.Count > 0,
+                    serviceLifespan: serviceLifespan,
+                    tabString: _userSettings.Value.TabString);
                 serviceStartupRegistration.Visit(startupTree);
 
                 if (!serviceStartupRegistration.IsServiceRegistered)
@@ -406,130 +503,119 @@ namespace MvcPodium.ConsoleApp.Controller
                     }
                 }
             }
+        }
 
-            //Inject Service into Controllers
-            //  For each Controller in Service.Controllers:
-            foreach (var controller in serviceCommand.Controllers)
-            {
-                var controllerAreaDirectory = controller.Area is null 
+
+        private void InjectServiceIntoClassConstructors(
+            ServiceCommand.Controller controller,
+            string className,
+            string interfaceName,
+            string serviceNamespace)
+        {
+            var controllerAreaDirectory = controller.Area is null
                     || controller.Area.TrimEnd(@"/\ ".ToCharArray()) == ""
                 ? "" : Path.Combine("Areas", controller.Area);
-                var controllerDirectory = Path.Combine(
-                    _commandLineArgs.Value.ProjectRoot, controllerAreaDirectory, "Controllers");
-                var controllerSubDirectory = Path.Combine(
-                    controllerDirectory, 
-                    controller.Subdirectories is null
-                        || controller.Subdirectories.Count == 0
-                        ? ""
-                        : string.Join('/', controller.Subdirectories));
+            var controllerDirectory = Path.Combine(
+                _commandLineArgs.Value.ProjectRoot, controllerAreaDirectory, "Controllers");
+            var controllerSubDirectory = Path.Combine(
+                controllerDirectory,
+                controller.Subdirectories is null
+                    || controller.Subdirectories.Count == 0
+                    ? ""
+                    : string.Join('/', controller.Subdirectories));
 
-                string controllerFilePath = Path.Combine(controllerSubDirectory, $"{controller.Name}.cs");
-                string testControllerFilePath = Path.Combine(controllerSubDirectory, $"X{controller.Name}.cs");
+            string controllerFilePath = Path.Combine(controllerSubDirectory, $"{controller.Name}.cs");
+            string testControllerFilePath = Path.Combine(controllerSubDirectory, $"X{controller.Name}.cs");
 
-                //  Check whether [Controller.Name].cs exists:
-                //          If Controller.Area != null:
-                //              ~/Areas/[Controller.Area]/Controllers/[Controller.Name].cs
-                //          Else:
-                //              ~/Controllers/[Controller.Name].cs
-                //              ~/Areas/[Service.Area]/Controllers/[Controller.Name].cs
-                if (!File.Exists(controllerFilePath))
+            //  Check whether [Controller.Name].cs exists:
+            //          If Controller.Area != null:
+            //              ~/Areas/[Controller.Area]/Controllers/[Controller.Name].cs
+            //          Else:
+            //              ~/Controllers/[Controller.Name].cs
+            //              ~/Areas/[Service.Area]/Controllers/[Controller.Name].cs
+            if (!File.Exists(controllerFilePath))
+            {
+                //  If !exists:
+                //      Throw error
+            }
+            else
+            {
+                var controllerServiceIdentifier = controller.ServiceIdentifier
+                    ?? (string.IsNullOrEmpty(className) || char.IsLower(className, 0)
+                        ? className : char.ToLowerInvariant(className[0]) + className.Substring(1));
+
+                var controllerInjectorParser = new CSharpParserWrapper(controllerFilePath);
+                var controllerInjectorTree = controllerInjectorParser.GetParseTree();
+
+                var controllerNamespace = _projectEnvironment.Value.RootNamespace
+                    + (controller.Area is null || controller.Area.TrimEnd(@"/\ ".ToCharArray()) == ""
+                        ? "" : $".Areas.{controller.Area}")
+                    + ".Controllers";
+
+                var fieldDeclaration = new FieldDeclaration()
                 {
-                    //  If !exists:
-                    //      Throw error
-                }
-                else
+                    Modifiers = new List<string>() { Keywords.Private, Keywords.Readonly },
+                    Type = interfaceName,
+                    VariableDeclarators = new List<VariableDeclarator>()
+                    {
+                        new VariableDeclarator() { Identifier = $"_{controllerServiceIdentifier}" }
+                    }
+                };
+
+                var constructorParameter = new FixedParameter()
                 {
-                    var controllerServiceIdentifier = controller.ServiceIdentifier 
-                        ?? (string.IsNullOrEmpty(className) || char.IsLower(className, 0)
-                            ? className : char.ToLowerInvariant(className[0]) + className.Substring(1));
+                    Type = interfaceName,
+                    Identifier = controllerServiceIdentifier
+                };
 
-                    var controllerInjectorParser = new CSharpParserWrapper(controllerFilePath);
-                    var controllerInjectorTree = controllerInjectorParser.GetParseTree();
+                var constructorAssignment = new SimpleAssignment()
+                {
+                    LeftHandSide = $"_{controllerServiceIdentifier}",
+                    RightHandSide = controllerServiceIdentifier
+                };
 
-                    var controllerNamespace = _projectEnvironment.Value.RootNamespace
-                        + (controller.Area is null || controller.Area.TrimEnd(@"/\ ".ToCharArray()) == ""
-                            ? "" : $".Areas.{controller.Area}")
-                        + ".Controllers";
-
-                    var fieldDeclaration = _stringTemplateService.RenderFieldDeclaration(
-                        new FieldDeclaration()
+                var constructorDeclaration = new ConstructorDeclaration()
+                {
+                    Modifiers = new List<string>() { Keywords.Public },
+                    Identifier = controller.Name,
+                    FormalParameterList = new FormalParameterList()
+                    {
+                        FixedParameters = new List<FixedParameter>() { constructorParameter }
+                    },
+                    Body = new ConstructorBody()
+                    {
+                        Statements = new List<Statement>()
                         {
-                            Modifiers = new List<string>() { Keywords.Private, Keywords.Readonly },
-                            Type = interfaceName,
-                            VariableDeclarators = new List<VariableDeclarator>()
-                            {
-                                new VariableDeclarator() { Identifier = $"_{controllerServiceIdentifier}" }
-                            }
-                        }
-                    );
-
-                    var ctorParam = new FixedParameter()
-                    {
-                        Type = interfaceName,
-                        Identifier = controllerServiceIdentifier
-                    };
-
-                    var constructorParameter = _stringTemplateService.RenderFixedParameter(ctorParam);
-
-                    var ctorAssignment = new SimpleAssignment()
-                    {
-                        LeftHandSide = $"_{controllerServiceIdentifier}",
-                        RightHandSide = controllerServiceIdentifier
-                    };
-
-                    var constructorAssignment = _stringTemplateService.RenderSimpleAssignment(ctorAssignment);
-
-                    var constructorDeclaration = _stringTemplateService.RenderConstructorDeclaration(
-                        new ConstructorDeclaration()
-                        {
-                            Modifiers = new List<string>() { Keywords.Public },
-                            Identifier = controller.Name,
-                            FormalParameterList = new FormalParameterList()
-                            {
-                                FixedParameters = new List<FixedParameter>() { ctorParam }
-                            },
-                            Body = new ConstructorBody()
-                            {
-                                Statements = new List<Statement>()
-                                {
-                                    new Statement() { SimpleAssignment = ctorAssignment }
-                                }
-                            }
-                        }
-                    );
-
-                    var constructionInjectionArgs = new ServiceConstructionInjectorArguments()
-                    {
-                        ConstructorClassName = controller.Name,
-                        ConstructorClassNamespace = controllerNamespace,
-                        ServiceIdentifier = controllerServiceIdentifier,
-                        ServiceNamespace = serviceNamespace,
-                        ServiceInterfaceType = interfaceName,
-                        FieldDeclaration = fieldDeclaration,
-                        ConstructorParameter = constructorParameter,
-                        ConstructorAssignment = constructorAssignment,
-                        ConstructorDeclaration = constructorDeclaration
-                    };
-
-                    var serviceControllerInjector = _serviceConstructorInjectorFactory.Create(
-                        controllerInjectorParser.Tokens,
-                        constructionInjectionArgs);
-                    serviceControllerInjector.Visit(controllerInjectorTree);
-
-                    if (!serviceControllerInjector.IsServiceInjected)
-                    {
-                        //using (var outStream = File.Create(startupFilepath))
-                        using (var outStream = File.Create(testControllerFilePath))
-                        {
-                            outStream.Write(Encoding.UTF8.GetBytes(serviceControllerInjector.Rewriter.GetText()));
-                            outStream.Flush();
+                            new Statement() { SimpleAssignment = constructorAssignment }
                         }
                     }
-                }
-                
-            }
+                };
 
-            return Task.CompletedTask;
+                var serviceControllerInjector = _serviceConstructorInjectorFactory.Create(
+                    controllerInjectorParser.Tokens,
+                    constructorClassName: controller.Name,
+                    constructorClassNamespace: controllerNamespace,
+                    serviceIdentifier: controllerServiceIdentifier,
+                    serviceNamespace: serviceNamespace,
+                    serviceInterfaceType: interfaceName,
+                    fieldDeclaration: fieldDeclaration,
+                    constructorParameter: constructorParameter,
+                    constructorAssignment: constructorAssignment,
+                    constructorDeclaration: constructorDeclaration,
+                    tabString: _userSettings.Value.TabString);
+                serviceControllerInjector.Visit(controllerInjectorTree);
+
+                if (!serviceControllerInjector.IsServiceInjected)
+                {
+                    //using (var outStream = File.Create(startupFilepath))
+                    using (var outStream = File.Create(testControllerFilePath))
+                    {
+                        outStream.Write(Encoding.UTF8.GetBytes(serviceControllerInjector.Rewriter.GetText()));
+                        outStream.Flush();
+                    }
+                }
+            }
         }
+
     }
 }

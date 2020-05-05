@@ -9,7 +9,7 @@ using McMaster.Extensions.CommandLineUtils;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-using MvcPodium.ConsoleApp.Model.Config;
+using MvcPodium.ConsoleApp.Models.Config;
 using MvcPodium.ConsoleApp.Controller;
 
 namespace MvcPodium.ConsoleApp

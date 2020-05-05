@@ -1,23 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using Antlr4.Runtime;
-using Antlr4.Runtime.Misc;
-using MvcPodium.ConsoleApp.Model;
+using MvcPodium.ConsoleApp.Models.CSharpCommon;
 
 namespace MvcPodium.ConsoleApp.Services
 {
     public class CSharpParserService : ICSharpParserService
     {
         private readonly IStringUtilService _stringUtilService;
+        private readonly ICSharpCommonStgService _cSharpCommonStgService;
 
-        public CSharpParserService(IStringUtilService stringUtilService)
+        public CSharpParserService(
+            IStringUtilService stringUtilService,
+            ICSharpCommonStgService cSharpCommonStgService)
         {
             _stringUtilService = stringUtilService;
+            _cSharpCommonStgService = cSharpCommonStgService;
         }
 
 
-        public string GetTextWithWhitespace(ParserRuleContext context, BufferedTokenStream tokenStream)
+        public string GetTextWithWhitespace(BufferedTokenStream tokenStream, ParserRuleContext context)
         {
             if (context is null) { return null; }
 
@@ -37,26 +40,26 @@ namespace MvcPodium.ConsoleApp.Services
         }
 
 
-        public string GetTextWithWhitespaceMinifiedLite(ParserRuleContext context, BufferedTokenStream tokenStream)
+        public string GetTextWithWhitespaceMinifiedLite(BufferedTokenStream tokenStream, ParserRuleContext context)
         {
             if (context is null) { return null; }
-            return _stringUtilService.MinifyStringLite(GetTextWithWhitespace(context, tokenStream));
+            return _stringUtilService.MinifyStringLite(GetTextWithWhitespace(tokenStream, context));
         }
 
 
-        public string GetTextWithWhitespaceMinified(ParserRuleContext context, BufferedTokenStream tokenStream)
+        public string GetTextWithWhitespaceMinified(BufferedTokenStream tokenStream, ParserRuleContext context)
         {
             if (context is null) { return null; }
-            return _stringUtilService.MinifyString(GetTextWithWhitespace(context, tokenStream));
+            return _stringUtilService.MinifyString(GetTextWithWhitespace(tokenStream, context));
         }
 
 
         public string GetTextWithWhitespaceUntab(
-            ParserRuleContext context,
             BufferedTokenStream tokenStream,
+            ParserRuleContext context,
             int untabLevels=-1)
         {
-            return _stringUtilService.UntabString(GetTextWithWhitespace(context, tokenStream), untabLevels);
+            return _stringUtilService.UntabString(GetTextWithWhitespace(tokenStream, context), untabLevels);
         }
 
 
@@ -158,7 +161,7 @@ namespace MvcPodium.ConsoleApp.Services
                     var constraints = constraintClause.type_parameter_constraints();
 
                     var primaryConstraint = GetTextWithWhitespaceMinified(
-                        constraints?.primary_constraint(), tokenStream);
+                        tokenStream, constraints?.primary_constraint());
                     if (primaryConstraint != null)
                     {
                         typeParameter.Constraints.Add(primaryConstraint);
@@ -170,12 +173,12 @@ namespace MvcPodium.ConsoleApp.Services
                         foreach (var secondaryConstraint in secondaryConstraints)
                         {
                             typeParameter.Constraints.Add(
-                                GetTextWithWhitespaceMinified(secondaryConstraint, tokenStream));
+                                GetTextWithWhitespaceMinified(tokenStream, secondaryConstraint));
                         }
                     }
 
                     var constructorConstraint = GetTextWithWhitespaceMinified(
-                        constraints?.constructor_constraint(), tokenStream);
+                        tokenStream, constraints?.constructor_constraint());
                     if (constructorConstraint != null)
                     {
                         typeParameter.Constraints.Add(constructorConstraint);
@@ -204,13 +207,12 @@ namespace MvcPodium.ConsoleApp.Services
                         formalParamList.FixedParameters.Add(
                             new FixedParameter()
                             {
-                                Attributes = GetTextWithWhitespace(fixedParameter?.attributes(), tokenStream),
+                                Attributes = GetTextWithWhitespace(tokenStream, fixedParameter?.attributes()),
                                 ParameterModifier = fixedParameter?.parameter_modifier()?.GetText(),
-                                Type = GetTextWithWhitespaceMinifiedLite(fixedParameter.type_(), tokenStream),
+                                Type = GetTextWithWhitespaceMinifiedLite(tokenStream, fixedParameter.type_()),
                                 Identifier = fixedParameter.identifier().GetText(),
                                 DefaultArgument = GetTextWithWhitespace(
-                                    fixedParameter?.default_argument()?.expression(),
-                                    tokenStream)
+                                    tokenStream, fixedParameter?.default_argument()?.expression())
                             }
                         );
                     }
@@ -220,13 +222,153 @@ namespace MvcPodium.ConsoleApp.Services
                 {
                     formalParamList.ParameterArray = new ParameterArray()
                     {
-                        Attributes = GetTextWithWhitespace(parameterArray?.attributes(), tokenStream),
-                        Type = GetTextWithWhitespaceMinifiedLite(parameterArray.array_type(), tokenStream),
+                        Attributes = GetTextWithWhitespace(tokenStream, parameterArray?.attributes()),
+                        Type = GetTextWithWhitespaceMinifiedLite(tokenStream, parameterArray.array_type()),
                         Identifier = parameterArray.identifier().GetText()
                     };
                 }
             }
             return formalParamList;
         }
+
+
+        public bool IsUsingDirectiveInContext(
+            CSharpParser.Compilation_unitContext context,
+            string usingDirective)
+        {
+            bool isUsingDirectiveInContext = false;
+
+            var usingDirectives = context?.using_directive();
+
+            if (usingDirectives != null)
+            {
+                foreach (var usingDir in usingDirectives)
+                {
+                    if (_stringUtilService.MinifyString(usingDir.using_directive_inner().GetText()) == usingDirective)
+                    {
+                        isUsingDirectiveInContext = true;
+                        break;
+                    }
+                }
+            }
+            return isUsingDirectiveInContext;
+        }
+
+
+        public IToken GetUsingStopIndex(CSharpParser.Compilation_unitContext context)
+        {
+            return context?.using_directive()?.LastOrDefault()?.Stop
+                ?? context?.extern_alias_directive()?.LastOrDefault()?.Stop
+                ?? context?.BYTE_ORDER_MARK()?.Symbol
+                ?? context.Start;
+        }
+
+
+        public IToken GetNamespaceStopIndex(CSharpParser.Compilation_unitContext context)
+        {
+            return context?.namespace_member_declaration()?.LastOrDefault()?.Stop
+                ?? context?.global_attributes()?.Stop
+                ?? context?.using_directive()?.LastOrDefault()?.Stop
+                ?? context?.extern_alias_directive()?.LastOrDefault()?.Stop
+                ?? context?.BYTE_ORDER_MARK()?.Symbol
+                ?? context.Start;
+        }
+
+        public IToken GetClassInterfaceStopIndex(CSharpParser.Namespace_bodyContext context)
+        {
+            return context?.namespace_member_declaration()?.LastOrDefault()?.Stop
+                ?? context?.using_directive()?.LastOrDefault()?.Stop
+                ?? context?.extern_alias_directive()?.LastOrDefault()?.Stop
+                ?? context.OPEN_BRACE().Symbol;
+        }
+
+
+        public string GenerateUsingDirectives(
+            List<string> usingDirectives,
+            bool isStartOfFile)
+        {
+            if (usingDirectives is null || usingDirectives.Count == 0) { return string.Empty; }
+            return (isStartOfFile ? string.Empty : "\r\n") +
+                _cSharpCommonStgService.RenderUsingDirectives(usingDirectives) +
+                (isStartOfFile ? "\r\n" : string.Empty);
+        }
+
+
+        public string GenerateUsingDirective(
+            string usingDirective,
+            bool isStartOfFile)
+        {
+            if (usingDirective is null || usingDirective == string.Empty) { return string.Empty; }
+            return (isStartOfFile ? string.Empty : "\r\n") +
+                _cSharpCommonStgService.RenderUsingDirective(usingDirective) +
+                (isStartOfFile ? "\r\n" : string.Empty);
+        }
+
+
+        public string GeneratePropertyDeclarations(
+            List<PropertyDeclaration> propertyDeclarations,
+            int tabLevels = 0,
+            string tabString = null,
+            bool isInterface = false)
+        {
+            var propertyStringBuilder = new StringBuilder();
+            if (propertyDeclarations != null && propertyDeclarations.Count > 0)
+            {
+                propertyStringBuilder.Append("\r\n");
+                foreach (var property in propertyDeclarations)
+                {
+                    propertyStringBuilder.Append("\r\n");
+                    propertyStringBuilder.Append(_stringUtilService.TabString(
+                        isInterface
+                            ? _cSharpCommonStgService.RenderInterfacePropertyDeclaration(property)
+                            : _cSharpCommonStgService.RenderClassPropertyDeclaration(property),
+                        tabLevels,
+                        tabString));
+                    propertyStringBuilder.Append("\r\n");
+                }
+            }
+            return propertyStringBuilder.ToString();
+        }
+
+
+        public string GenerateMethodDeclarations(
+            List<MethodDeclaration> methodDeclarations,
+            int tabLevels = 0,
+            string tabString = null,
+            bool isInterface = false)
+        {
+            var methodStringBuilder = new StringBuilder();
+            if (methodDeclarations != null && methodDeclarations.Count > 0)
+            {
+                methodStringBuilder.Append("\r\n");
+                foreach (var method in methodDeclarations)
+                {
+                    methodStringBuilder.Append("\r\n");
+                    methodStringBuilder.Append(_stringUtilService.TabString(
+                        isInterface
+                            ? _cSharpCommonStgService.RenderInterfaceMethodDeclaration(method)
+                            : _cSharpCommonStgService.RenderClassMethodDeclaration(method),
+                        tabLevels,
+                        tabString));
+                    methodStringBuilder.Append("\r\n");
+                }
+            }
+            return methodStringBuilder.ToString();
+        }
+
+        public string GenerateClassInterfaceDeclaration(
+            ClassInterfaceDeclaration classInterfaceDeclaration,
+            int tabLevels = 0,
+            string tabString = null)
+        {
+            if (classInterfaceDeclaration is null) { return string.Empty; }
+            return "\r\n\r\n" +
+                _stringUtilService.TabString(classInterfaceDeclaration.IsInterface
+                    ? _cSharpCommonStgService.RenderInterfaceDeclaration(classInterfaceDeclaration)
+                    : _cSharpCommonStgService.RenderClassDeclaration(classInterfaceDeclaration),
+                tabLevels,
+                tabString);
+        }
+
     }
 }

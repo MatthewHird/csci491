@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Antlr4.Runtime;
-using MvcPodium.ConsoleApp.Model;
+﻿using Antlr4.Runtime;
 using MvcPodium.ConsoleApp.Services;
 
 
@@ -12,31 +8,50 @@ namespace MvcPodium.ConsoleApp.Visitors.Factories
     {
         ServiceStartupRegistration Create(
             BufferedTokenStream tokenStream,
-            ServiceStartupRegistrationArguments serviceRegistrationArgs);
+            string rootNamespace,
+            string serviceNamespace,
+            string serviceName,
+            bool hasTypeParameters,
+            string serviceLifespan,
+            string tabString = null);
     }
 
     public class ServiceStartupRegistrationFactory : IServiceStartupRegistrationFactory
     {
         private readonly IStringUtilService _stringUtilService;
         private readonly ICSharpParserService _cSharpParserService;
+        private readonly IServiceCommandStgService _serviceCommandStgService;
 
         public ServiceStartupRegistrationFactory(
             IStringUtilService stringUtilService,
-            ICSharpParserService cSharpParserService)
+            ICSharpParserService cSharpParserService,
+            IServiceCommandStgService serviceCommandStgService)
         {
             _stringUtilService = stringUtilService;
             _cSharpParserService = cSharpParserService;
+            _serviceCommandStgService = serviceCommandStgService;
         }
 
         public ServiceStartupRegistration Create(
             BufferedTokenStream tokenStream,
-            ServiceStartupRegistrationArguments serviceRegistrationArgs)
+            string rootNamespace,
+            string serviceNamespace,
+            string serviceName,
+            bool hasTypeParameters,
+            string serviceLifespan,
+            string tabString = null)
         {
             return new ServiceStartupRegistration(
-                tokenStream,
-                serviceRegistrationArgs,
                 _stringUtilService,
-                _cSharpParserService);
+                _cSharpParserService,
+                _serviceCommandStgService,
+                tokenStream,
+                rootNamespace,
+                serviceNamespace,
+                serviceName,
+                hasTypeParameters,
+                serviceLifespan,
+                tabString);
         }
     }
 }

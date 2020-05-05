@@ -2,21 +2,23 @@
 using System.Collections.Generic;
 using System.Text;
 using Antlr4.Runtime;
-using MvcPodium.ConsoleApp.Model;
+using Antlr4.Runtime.Misc;
+using MvcPodium.ConsoleApp.Models;
+using MvcPodium.ConsoleApp.Models.CSharpCommon;
 
 namespace MvcPodium.ConsoleApp.Services
 {
     public interface ICSharpParserService
     {
-        string GetTextWithWhitespace(ParserRuleContext context, BufferedTokenStream tokenStream);
+        string GetTextWithWhitespace(BufferedTokenStream tokenStream, ParserRuleContext context);
 
-        string GetTextWithWhitespaceMinifiedLite(ParserRuleContext context, BufferedTokenStream tokenStream);
+        string GetTextWithWhitespaceMinifiedLite(BufferedTokenStream tokenStream, ParserRuleContext context);
 
-        string GetTextWithWhitespaceMinified(ParserRuleContext context, BufferedTokenStream tokenStream);
+        string GetTextWithWhitespaceMinified(BufferedTokenStream tokenStream, ParserRuleContext context);
 
         string GetTextWithWhitespaceUntab(
-            ParserRuleContext context, 
             BufferedTokenStream tokenStream, 
+            ParserRuleContext context, 
             int untabLevels=-1);
 
         List<TypeParameter> ParseVariantTypeParameterList(
@@ -32,5 +34,40 @@ namespace MvcPodium.ConsoleApp.Services
         FormalParameterList ParseFormalParameterList(
             BufferedTokenStream tokenStream,
             CSharpParser.Formal_parameter_listContext formalParameterList);
+
+        bool IsUsingDirectiveInContext(
+            CSharpParser.Compilation_unitContext context,
+            string usingDirective);
+
+        IToken GetUsingStopIndex(CSharpParser.Compilation_unitContext context);
+
+        IToken GetNamespaceStopIndex(CSharpParser.Compilation_unitContext context);
+
+        IToken GetClassInterfaceStopIndex(CSharpParser.Namespace_bodyContext context);
+
+        string GenerateUsingDirectives(
+            List<string> usingDirectives,
+            bool isStartOfFile);
+
+        string GenerateUsingDirective(
+            string usingDirective,
+            bool isStartOfFile);
+
+        string GeneratePropertyDeclarations(
+            List<PropertyDeclaration> propertyDeclarations,
+            int tabLevels = 0,
+            string tabString = null,
+            bool isInterface = false);
+
+        string GenerateMethodDeclarations(
+            List<MethodDeclaration> methodDeclarations,
+            int tabLevels = 0,
+            string tabString = null,
+            bool isInterface = false);
+
+        string GenerateClassInterfaceDeclaration(
+            ClassInterfaceDeclaration classInterfaceDeclaration,
+            int tabLevels = 0,
+            string tabString = null);
     }
 }

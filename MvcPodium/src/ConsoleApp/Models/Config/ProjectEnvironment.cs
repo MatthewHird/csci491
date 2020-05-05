@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace MvcPodium.ConsoleApp.Model.Config
+namespace MvcPodium.ConsoleApp.Models.Config
 {
     public class ProjectEnvironment
     {

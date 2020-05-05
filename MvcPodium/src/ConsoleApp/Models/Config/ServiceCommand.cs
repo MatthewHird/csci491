@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using MvcPodium.ConsoleApp.Models.CSharpCommon;
 
-namespace MvcPodium.ConsoleApp.Model.Config
+namespace MvcPodium.ConsoleApp.Models.Config
 {
     public partial class CommandSet
     {

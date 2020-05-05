@@ -2,54 +2,8 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace MvcPodium.ConsoleApp.Model
+namespace MvcPodium.ConsoleApp.Models.CSharpCommon
 {
-    public class ServiceClassInterfaceInjectorArguments
-    {
-        // _serviceInterfaceName = serviceInterfaceName;
-        public string ServiceClassInterfaceName { get; set; }
-        // _serviceNamespace = serviceNamespace;
-        public string ServiceNamespace { get; set; }
-        // _usingDirectives = usingDirectives;
-        public List<string> UsingDirectives { get; set; } = new List<string>();
-        // _propertyDeclarations = propertyDeclarations;
-        public List<string> PropertyDeclarations { get; set; } = new List<string>();
-        // _methodDeclarations = methodDeclarations;
-        public List<string> MethodDeclarations { get; set; } = new List<string>();
-    }
-
-    public class ServiceStartupRegistrationArguments
-    {
-        public string RootNamespace { get; set; }
-        public string ServiceNamespace { get; set; }
-        public string StartupRegistrationCall { get; set; }
-        public ServiceRegistrationInfo ServiceRegistrationInfo { get; set; }
-    }
-
-
-    public class ServiceRegistrationInfo
-    {
-        public string ServiceName { get; set; }
-        public bool HasTypeParameters { get; set; }
-        public string Scope { get; set; }
-    }
-
-    public class ServiceConstructionInjectorArguments
-    {
-        public string ConstructorClassName { get; set; }
-        public string ConstructorClassNamespace { get; set; }
-        public string ServiceIdentifier { get; set; }
-        public string ServiceNamespace { get; set; }
-        public string ServiceInterfaceType { get; set; }
-
-        public string FieldDeclaration { get; set; }
-        public string ConstructorParameter { get; set; }
-        public string ConstructorAssignment { get; set; }
-        public string ConstructorDeclaration { get; set; }
-
-    }
-
-
     // class_declaration
     //  : attributes? class_modifier* PARTIAL? CLASS identifier type_parameter_list?
     //    class_base? type_parameter_constraints_clauses? class_body SEMICOLON?
@@ -115,11 +69,11 @@ namespace MvcPodium.ConsoleApp.Model
             return new ClassInterfaceDeclaration()
             {
                 IsInterface = IsInterface.Copy(),
-                Attributes = Attributes.Copy(),
-                Modifiers = Modifiers.Copy(),
-                Identifier = Identifier.Copy(),
-                TypeParameters = TypeParameters.Copy(),
-                Base = Base.Copy()
+                Attributes = Attributes?.Copy(),
+                Modifiers = Modifiers?.Copy(),
+                Identifier = Identifier?.Copy(),
+                TypeParameters = TypeParameters?.Copy(),
+                Base = Base?.Copy()
             };
         }
     }

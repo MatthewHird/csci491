@@ -14,7 +14,7 @@ using Antlr4.StringTemplate;
 using Microsoft.Extensions.Hosting;
 using System.Threading;
 using Microsoft.Extensions.Logging;
-using MvcPodium.ConsoleApp.Model.Config;
+using MvcPodium.ConsoleApp.Models.Config;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
 using System.Text.Json.Serialization;

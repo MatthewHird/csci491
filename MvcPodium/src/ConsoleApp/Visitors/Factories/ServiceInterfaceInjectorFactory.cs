@@ -1,6 +1,5 @@
-﻿using System.Collections.Generic;
-using Antlr4.Runtime;
-using MvcPodium.ConsoleApp.Model;
+﻿using Antlr4.Runtime;
+using MvcPodium.ConsoleApp.Models.ServiceCommand;
 using MvcPodium.ConsoleApp.Services;
 
 namespace MvcPodium.ConsoleApp.Visitors.Factories
@@ -9,26 +8,41 @@ namespace MvcPodium.ConsoleApp.Visitors.Factories
     {
         ServiceInterfaceInjector Create(
             BufferedTokenStream tokenStream,
-            ServiceClassInterfaceInjectorArguments serviceInjectorArgs);
+            string serviceClassInterfaceName,
+            ServiceFile serviceFile,
+            string tabString);
     }
     
     public class ServiceInterfaceInjectorFactory : IServiceInterfaceInjectorFactory
     {
         private readonly IStringUtilService _stringUtilService;
+        private readonly ICSharpParserService _cSharpParserService;
+        private readonly IServiceCommandService _serviceCommandService;
+
         public ServiceInterfaceInjectorFactory(
-            IStringUtilService stringUtilService)
+            IStringUtilService stringUtilService,
+            ICSharpParserService cSharpParserService,
+            IServiceCommandService serviceCommandService)
         {
             _stringUtilService = stringUtilService;
+            _cSharpParserService = cSharpParserService;
+            _serviceCommandService = serviceCommandService;
         }
 
         public ServiceInterfaceInjector Create(
             BufferedTokenStream tokenStream,
-            ServiceClassInterfaceInjectorArguments serviceInjectorArgs)
+            string serviceClassInterfaceName,
+            ServiceFile serviceFile,
+            string tabString)
         {
             return new ServiceInterfaceInjector(
+                _stringUtilService,
+                _cSharpParserService,
+                _serviceCommandService,
                 tokenStream,
-                serviceInjectorArgs,
-                _stringUtilService);
+                serviceClassInterfaceName,
+                serviceFile,
+                tabString);
         }
     }
 }

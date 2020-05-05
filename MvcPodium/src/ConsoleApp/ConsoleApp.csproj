@@ -43,10 +43,10 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="StringTemplates\CSharp.stg">
+    <None Update="StringTemplates\BreadcrumbCommand.stg">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="StringTemplates\MyTemplateGroup.stg">
+    <None Update="StringTemplates\CSharpCommon.stg">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="Model\Config\ServiceCommand.cs">

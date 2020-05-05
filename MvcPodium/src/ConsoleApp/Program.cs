@@ -9,7 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 using MvcPodium.ConsoleApp.Controller;
-using MvcPodium.ConsoleApp.Model.Config;
+using MvcPodium.ConsoleApp.Models.Config;
 using MvcPodium.ConsoleApp.Services;
 using MvcPodium.ConsoleApp.Visitors.Factories;
 
@@ -181,19 +181,22 @@ namespace MvcPodium.ConsoleApp
             serviceCollection.AddTransient<MvcPodiumController, MvcPodiumController>();
             serviceCollection.AddTransient<ServiceCommandController, ServiceCommandController>();
             
-            serviceCollection.AddSingleton<IServiceCommandStService, ServiceCommandStService>();
             serviceCollection.AddSingleton<ICSharpParserService, CSharpParserService>();
             serviceCollection.AddSingleton<IServiceCommandService, ServiceCommandService>();
             serviceCollection.AddSingleton<IStringUtilService, StringUtilService>();
+            
+            serviceCollection.AddSingleton<ICSharpCommonStgService, CSharpCommonStgService>();
+            serviceCollection.AddSingleton<IServiceCommandStgService, ServiceCommandStgService>();
+            serviceCollection.AddSingleton<IBreadcrumbCommandStgService, BreadcrumbCommandStgService>();
             
             serviceCollection.AddSingleton<IServiceInterfaceScraperFactory, ServiceInterfaceScraperFactory>();
             serviceCollection.AddSingleton<IServiceClassScraperFactory, ServiceClassScraperFactory>();
             serviceCollection.AddSingleton<IServiceInterfaceInjectorFactory, ServiceInterfaceInjectorFactory>();
             serviceCollection.AddSingleton<IServiceClassInjectorFactory, ServiceClassInjectorFactory>();
-            serviceCollection.AddSingleton<IXServiceInterfaceScraperFactory, XServiceInterfaceScraperFactory>();
             serviceCollection.AddSingleton<IServiceStartupRegistrationFactory, ServiceStartupRegistrationFactory>();
             serviceCollection.AddSingleton<IServiceConstructorInjectorFactory, ServiceConstructorInjectorFactory>();
-
+            serviceCollection.AddSingleton<IBreadcrumbControllerScraperFactory, BreadcrumbControllerScraperFactory>();
+            
             return serviceCollection.BuildServiceProvider();
         }
     }
