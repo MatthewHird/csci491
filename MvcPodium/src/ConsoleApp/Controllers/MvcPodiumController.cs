@@ -19,7 +19,7 @@ using Microsoft.Extensions.Options;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace MvcPodium.ConsoleApp.Controller
+namespace MvcPodium.ConsoleApp.Controllers
 {
     public class MvcPodiumController
     {
@@ -28,19 +28,22 @@ namespace MvcPodium.ConsoleApp.Controller
         private readonly IOptions<ProjectEnvironment> _projectEnvironment;
         private readonly IOptions<AppSettings> _appSettings;
         private readonly ServiceCommandController _serviceCommandController;
+        private readonly BreadcrumbCommandController _breadcrumbCommandController;
 
         public MvcPodiumController(
             ILogger<MvcPodiumController> logger,
             IOptions<CommandLineArgs> commandLineArgs,
             IOptions<ProjectEnvironment> projectEnvironment, 
             IOptions<AppSettings> appSettings,
-            ServiceCommandController serviceCommandController)
+            ServiceCommandController serviceCommandController,
+            BreadcrumbCommandController breadcrumbCommandController)
         {
             _logger = logger;
             _commandLineArgs = commandLineArgs;
             _projectEnvironment = projectEnvironment;
             _appSettings = appSettings;
             _serviceCommandController = serviceCommandController;
+            _breadcrumbCommandController = breadcrumbCommandController;
         }
 
         public int Run()
@@ -61,6 +64,13 @@ namespace MvcPodium.ConsoleApp.Controller
                     foreach(var serviceCommand in commandSet.ServiceCommands)
                     {
                         _serviceCommandController.Execute(serviceCommand);
+                    }
+                }
+                if (commandSet?.BreadcrumbCommands != null)
+                {
+                    foreach (var breadcrumbCommand in commandSet.BreadcrumbCommands)
+                    {
+                        _breadcrumbCommandController.Execute(breadcrumbCommand);
                     }
                 }
             }

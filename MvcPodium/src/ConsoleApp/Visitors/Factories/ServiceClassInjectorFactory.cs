@@ -19,15 +19,15 @@ namespace MvcPodium.ConsoleApp.Visitors.Factories
     {
         private readonly IStringUtilService _stringUtilService;
         private readonly ICSharpParserService _cSharpParserService;
-        private readonly IServiceCommandService _serviceCommandService;
+        private readonly IServiceCommandParserService _serviceCommandParserService;
         public ServiceClassInjectorFactory(
             IStringUtilService stringUtilService,
             ICSharpParserService cSharpParserService,
-            IServiceCommandService serviceCommandService)
+            IServiceCommandParserService serviceCommandParserService)
         {
             _stringUtilService = stringUtilService;
             _cSharpParserService = cSharpParserService;
-            _serviceCommandService = serviceCommandService;
+            _serviceCommandParserService = serviceCommandParserService;
         }
 
         public ServiceClassInjector Create(
@@ -39,7 +39,7 @@ namespace MvcPodium.ConsoleApp.Visitors.Factories
             return new ServiceClassInjector(
                 _stringUtilService,
                 _cSharpParserService,
-                _serviceCommandService,
+                _serviceCommandParserService,
                 tokenStream,
                 serviceClassInterfaceName,
                 serviceFile,

@@ -8,10 +8,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-using MvcPodium.ConsoleApp.Controller;
+using MvcPodium.ConsoleApp.Controllers;
 using MvcPodium.ConsoleApp.Models.Config;
 using MvcPodium.ConsoleApp.Services;
 using MvcPodium.ConsoleApp.Visitors.Factories;
+using MvcPodium.ConsoleApp.Controllers;
 
 namespace MvcPodium.ConsoleApp
 {
@@ -180,15 +181,21 @@ namespace MvcPodium.ConsoleApp
 
             serviceCollection.AddTransient<MvcPodiumController, MvcPodiumController>();
             serviceCollection.AddTransient<ServiceCommandController, ServiceCommandController>();
+            serviceCollection.AddTransient<BreadcrumbCommandController, BreadcrumbCommandController>();
+            
+            serviceCollection.AddSingleton<IServiceCommandService, ServiceCommandService>();
             
             serviceCollection.AddSingleton<ICSharpParserService, CSharpParserService>();
-            serviceCollection.AddSingleton<IServiceCommandService, ServiceCommandService>();
-            serviceCollection.AddSingleton<IStringUtilService, StringUtilService>();
+            serviceCollection.AddSingleton<IServiceCommandParserService, ServiceCommandParserService>();
+            serviceCollection.AddSingleton<IBreadcrumbCommandParserService, BreadcrumbCommandParserService>();
             
             serviceCollection.AddSingleton<ICSharpCommonStgService, CSharpCommonStgService>();
             serviceCollection.AddSingleton<IServiceCommandStgService, ServiceCommandStgService>();
             serviceCollection.AddSingleton<IBreadcrumbCommandStgService, BreadcrumbCommandStgService>();
-            
+
+            serviceCollection.AddSingleton<IStringUtilService, StringUtilService>();
+            serviceCollection.AddSingleton<IIoUtilService, IoUtilService>();
+
             serviceCollection.AddSingleton<IServiceInterfaceScraperFactory, ServiceInterfaceScraperFactory>();
             serviceCollection.AddSingleton<IServiceClassScraperFactory, ServiceClassScraperFactory>();
             serviceCollection.AddSingleton<IServiceInterfaceInjectorFactory, ServiceInterfaceInjectorFactory>();
@@ -196,6 +203,9 @@ namespace MvcPodium.ConsoleApp
             serviceCollection.AddSingleton<IServiceStartupRegistrationFactory, ServiceStartupRegistrationFactory>();
             serviceCollection.AddSingleton<IServiceConstructorInjectorFactory, ServiceConstructorInjectorFactory>();
             serviceCollection.AddSingleton<IBreadcrumbControllerScraperFactory, BreadcrumbControllerScraperFactory>();
+            serviceCollection.AddSingleton<IBreadcrumbControllerInjectorFactory, BreadcrumbControllerInjectorFactory>();
+            serviceCollection.AddSingleton<IBreadcrumbClassInjectorFactory, BreadcrumbClassInjectorFactory>();
+            serviceCollection.AddSingleton<IBreadcrumbInterfaceInjectorFactory, BreadcrumbInterfaceInjectorFactory>();
             
             return serviceCollection.BuildServiceProvider();
         }

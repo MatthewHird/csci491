@@ -12,7 +12,7 @@ namespace MvcPodium.ConsoleApp.Visitors
     {
         private readonly IStringUtilService _stringUtilService;
         private readonly ICSharpParserService _cSharpParserService;
-        private readonly IServiceCommandService _serviceCommandService;
+        private readonly IServiceCommandParserService _serviceCommandParserService;
 
         private readonly string _serviceClassInterfaceName;
         private readonly ServiceFile _serviceFile;
@@ -23,7 +23,7 @@ namespace MvcPodium.ConsoleApp.Visitors
 
         private readonly Stack<string> _currentNamespace;
 
-        public bool Success { get; private set; }
+        public bool IsModified { get; private set; }
 
         public TokenStreamRewriter Rewriter { get; }
         public BufferedTokenStream Tokens { get; }
@@ -31,7 +31,7 @@ namespace MvcPodium.ConsoleApp.Visitors
         public ServiceClassInjector(
             IStringUtilService stringUtilService,
             ICSharpParserService cSharpParserService,
-            IServiceCommandService serviceCommandService,
+            IServiceCommandParserService serviceCommandParserService,
             BufferedTokenStream tokenStream,
             string serviceClassInterfaceName,
             ServiceFile serviceFile,
@@ -39,7 +39,7 @@ namespace MvcPodium.ConsoleApp.Visitors
         {
             _stringUtilService = stringUtilService;
             _cSharpParserService = cSharpParserService;
-            _serviceCommandService = serviceCommandService;
+            _serviceCommandParserService = serviceCommandParserService;
             Tokens = tokenStream;
             Rewriter = new TokenStreamRewriter(tokenStream);
             _serviceClassInterfaceName = serviceClassInterfaceName;
@@ -48,32 +48,35 @@ namespace MvcPodium.ConsoleApp.Visitors
             _currentNamespace = new Stack<string>();
             _hasServiceNamespace = false;
             _hasServiceClass = false;
+            IsModified = false;
         }
 
         public override object VisitCompilation_unit([NotNull] CSharpParser.Compilation_unitContext context)
         {
-            Success = false;
-
             var usingStopIndex = _cSharpParserService.GetUsingStopIndex(context);
 
             var usingDirectivesStr = _cSharpParserService.GenerateUsingDirectives(
                 _serviceFile.UsingDirectives,
                 usingStopIndex.Equals(context.Start));
 
-            Rewriter.InsertAfter(usingStopIndex, usingDirectivesStr);
+            if (usingDirectivesStr != null && usingDirectivesStr != string.Empty)
+            {
+                IsModified = true;
+                Rewriter.InsertAfter(usingStopIndex, usingDirectivesStr);
+            }
 
             VisitChildren(context);
 
             if (!_hasServiceNamespace)
             {
                 var namespaceStopIndex = _cSharpParserService.GetNamespaceStopIndex(context);
-                var serviceNamespaceDeclaration = _serviceCommandService.GenerateServiceNamespaceDeclaration(
+                var serviceNamespaceDeclaration = _serviceCommandParserService.GenerateServiceNamespaceDeclaration(
                     _serviceFile.ServiceNamespace,
                     _serviceFile.ServiceDeclaration);
+                IsModified = true;
                 Rewriter.InsertAfter(namespaceStopIndex, serviceNamespaceDeclaration);
             }
 
-            Success = true;
             return null;
         }
 
@@ -101,13 +104,14 @@ namespace MvcPodium.ConsoleApp.Visitors
                 var classInterfaceStopIndex = _cSharpParserService.GetClassInterfaceStopIndex(context);
 
                 var preclassWhitespace = Tokens.GetHiddenTokensToLeft(context.Start.TokenIndex, Lexer.Hidden);
-                int tabLevels = 1 + (preclassWhitespace.Count > 0 ?
-                    _stringUtilService.CalculateTabLevels(preclassWhitespace[0].Text, _tabString) : 0);
+                int tabLevels = 1 + ((preclassWhitespace?.Count ?? 0) > 0 ?
+                    _stringUtilService.CalculateTabLevels(preclassWhitespace[0]?.Text ?? string.Empty, _tabString) : 0);
 
                 var classDeclaration = _cSharpParserService.GenerateClassInterfaceDeclaration(
                     _serviceFile.ServiceDeclaration,
                     tabLevels,
                     _tabString);
+                IsModified = true;
                 Rewriter.InsertAfter(classInterfaceStopIndex, classDeclaration);
             }
 
@@ -148,8 +152,8 @@ namespace MvcPodium.ConsoleApp.Visitors
                 _hasServiceClass = true;
                 var preclassWhitespace = Tokens.GetHiddenTokensToLeft(context.Start.TokenIndex, Lexer.Hidden);
 
-                int tabLevels = 1 + (preclassWhitespace.Count > 0 ?
-                    _stringUtilService.CalculateTabLevels(preclassWhitespace[0].Text, _tabString) : 0);
+                int tabLevels = 1 + ((preclassWhitespace?.Count ?? 0) > 0 ?
+                    _stringUtilService.CalculateTabLevels(preclassWhitespace[0]?.Text ?? string.Empty, _tabString) : 0);
 
                 int? finalProperty = null;
                 int? finalMethod = null;
@@ -217,12 +221,14 @@ namespace MvcPodium.ConsoleApp.Visitors
                 {
                     if (methodString.Length > 0)
                     {
-                        Rewriter.InsertAfter(Tokens.Get(methodStopIndex ?? -1), methodString);
+                        IsModified = true;
+                        Rewriter.InsertAfter(methodStopIndex ?? -1, methodString);
                     }
                 }
 
                 if (propertyString.Length > 0)
                 {
+                    IsModified = true;
                     Rewriter.InsertAfter(propertyStopIndex, propertyString);
                 }
 

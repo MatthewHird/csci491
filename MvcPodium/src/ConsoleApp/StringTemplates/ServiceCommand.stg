@@ -18,7 +18,7 @@ InterfaceDeclaration(
     serviceDeclaration.TypeParameters,
     serviceDeclaration.Base,
     serviceDeclaration.Body)
-><else><
+><\n><else><
 ClassDeclaration(
     serviceDeclaration.Attributes,
     serviceDeclaration.Modifiers,
@@ -26,8 +26,7 @@ ClassDeclaration(
     serviceDeclaration.TypeParameters,
     serviceDeclaration.Base,
     serviceDeclaration.Body)
-><endif>
-}
+><\n><endif>}
 >>
 
 

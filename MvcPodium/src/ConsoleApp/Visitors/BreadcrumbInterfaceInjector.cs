@@ -10,7 +10,7 @@ using MvcPodium.ConsoleApp.Services;
 
 namespace MvcPodium.ConsoleApp.Visitors
 {
-    public class BreadcrumbControllerScraper : CSharpParserBaseVisitor<object>
+    public class BreadcrumbInterfaceInjector : CSharpParserBaseVisitor<object>
     {
         private readonly Stack<string> _currentNamespace;
         private readonly Stack<string> _currentClass;
@@ -20,11 +20,14 @@ namespace MvcPodium.ConsoleApp.Visitors
         public BufferedTokenStream Tokens { get; }
         public ControllerDictionary Results { get; set; }
 
-        public BreadcrumbControllerScraper(
-            BufferedTokenStream tokenStream)
+        private readonly string _tabString;
+
+        public BreadcrumbInterfaceInjector(
+            BufferedTokenStream tokenStream,
+            string tabString)
         {
             Tokens = tokenStream;
-
+            _tabString = tabString;
             _currentNamespace = new Stack<string>();
             _currentClass = new Stack<string>();
             _isControllerClass = new Stack<bool>();

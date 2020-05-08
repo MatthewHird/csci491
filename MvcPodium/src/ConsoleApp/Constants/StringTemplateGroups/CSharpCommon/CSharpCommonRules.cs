@@ -110,7 +110,7 @@ namespace MvcPodium.ConsoleApp.Constants.StringTemplateGroups.CSharpCommon
             public const string Attributes = "attributes";
             public const string Modifiers = "modifiers";
             public const string Type = "type";
-            public const string VariableDeclarators = "variableDeclarators";
+            public const string VariableDeclarator = "variableDeclarator";
         }
     }
 

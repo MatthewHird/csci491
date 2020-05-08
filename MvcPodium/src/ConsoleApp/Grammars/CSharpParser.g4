@@ -457,7 +457,7 @@ member_declarator_list: member_declarator (COMMA member_declarator)* ;
 
 member_declarator
     : simple_name
-    | member_access
+    | primary_expression member_access
     | base_access
     | null_conditional_member_access
     | identifier ASSIGNMENT expression
@@ -518,7 +518,7 @@ anonymous_function_body
     ;
 
 predefined_type
-    : integral_type
+    : simple_type
     | string_type
     | OBJECT 
     ;
@@ -618,7 +618,7 @@ local_function_modifiers
     : (ASYNC | UNSAFE)
     ;
 
- local_function_body
+local_function_body
     : block
     | OP_ARROW expression SEMICOLON
     ;

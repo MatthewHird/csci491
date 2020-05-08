@@ -1,399 +1,215 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using MvcPodium.ConsoleApp.Constants.CSharpGrammar;
+﻿using System.Collections.Generic;
+using Microsoft.Extensions.DependencyInjection;
 using MvcPodium.ConsoleApp.Models.CSharpCommon;
 using MvcPodium.ConsoleApp.Models.ServiceCommand;
+using MvcPodium.ConsoleApp.Visitors.Factories;
 
 namespace MvcPodium.ConsoleApp.Services
 {
     public class ServiceCommandService : IServiceCommandService
     {
-        private readonly IStringUtilService _stringUtilService;
-        private readonly ICSharpCommonStgService _cSharpCommonStgService;
         private readonly IServiceCommandStgService _serviceCommandStgService;
+        private readonly IServiceCommandParserService _serviceCommandParserService;
+        private readonly IServiceInterfaceScraperFactory _serviceInterfaceScraperFactory;
+        private readonly IServiceClassScraperFactory _serviceClassScraperFactory;
+        private readonly IServiceInterfaceInjectorFactory _serviceInterfaceInjectorFactory;
+        private readonly IServiceClassInjectorFactory _serviceClassInjectorFactory;
+        private readonly IServiceStartupRegistrationFactory _serviceStartupRegistrationFactory;
+        private readonly IServiceConstructorInjectorFactory _serviceConstructorInjectorFactory;
 
         public ServiceCommandService(
-            IStringUtilService stringUtilService,
-            ICSharpCommonStgService cSharpCommonStgService,
-            IServiceCommandStgService serviceCommandStgService)
+            IServiceCommandStgService serviceCommandStgService,
+            IServiceCommandParserService serviceCommandParserService,
+            IServiceInterfaceScraperFactory serviceInterfaceScraperFactory,
+            IServiceClassScraperFactory serviceClassScraperFactory,
+            IServiceInterfaceInjectorFactory serviceInterfaceInjectorFactory,
+            IServiceClassInjectorFactory serviceClassInjectorFactory,
+            IServiceStartupRegistrationFactory serviceStartupRegistrationFactory,
+            IServiceConstructorInjectorFactory serviceConstructorInjectorFactory)
         {
-            _stringUtilService = stringUtilService;
-            _cSharpCommonStgService = cSharpCommonStgService;
             _serviceCommandStgService = serviceCommandStgService;
+            _serviceCommandParserService = serviceCommandParserService;
+            _serviceInterfaceScraperFactory = serviceInterfaceScraperFactory;
+            _serviceClassScraperFactory = serviceClassScraperFactory;
+            _serviceInterfaceInjectorFactory = serviceInterfaceInjectorFactory;
+            _serviceClassInjectorFactory = serviceClassInjectorFactory;
+            _serviceStartupRegistrationFactory = serviceStartupRegistrationFactory;
+            _serviceConstructorInjectorFactory = serviceConstructorInjectorFactory;
         }
 
-        public (ServiceFile classMissingResults, ServiceFile interfaceMissingResults)
-            CompareScraperResults(ServiceFile classResults, ServiceFile interfaceResults)
-        {
-            var classMissingResults = new ServiceFile()
-            {
-                ServiceNamespace = classResults.ServiceNamespace,
-                UsingDirectives = GetMissingStrings(
-                    classResults.UsingDirectives, interfaceResults.UsingDirectives).ToList()
-            };
-            
-            var interfaceMissingResults = new ServiceFile()
-            {
-                ServiceNamespace = interfaceResults.ServiceNamespace,
-                UsingDirectives =
-                    GetMissingStrings(interfaceResults.UsingDirectives, classResults.UsingDirectives).ToList()
-            };
-
-            if (classResults.ServiceDeclaration != null && interfaceResults.ServiceDeclaration != null)
-            {
-                var interfaceBody = interfaceResults?.ServiceDeclaration?.Body ?? new ClassInterfaceBody();
-                var classBody = classResults?.ServiceDeclaration?.Body ?? new ClassInterfaceBody();
-
-                classMissingResults.ServiceDeclaration = classResults.ServiceDeclaration.CopyHeader();
-
-                classMissingResults.ServiceDeclaration.Body.MethodDeclarations =
-                    GetMissingMethodDeclarations(classBody.MethodDeclarations, interfaceBody.MethodDeclarations);
-
-                classMissingResults.ServiceDeclaration.Body.PropertyDeclarations =
-                    GetMissingPropertyDeclarations(classBody.PropertyDeclarations, interfaceBody.PropertyDeclarations);
-
-                interfaceMissingResults.ServiceDeclaration = interfaceResults.ServiceDeclaration.CopyHeader();
-
-                interfaceMissingResults.ServiceDeclaration.Body.MethodDeclarations =
-                    GetMissingMethodDeclarations(interfaceBody.MethodDeclarations, classBody.MethodDeclarations);
-
-                interfaceMissingResults.ServiceDeclaration.Body.PropertyDeclarations =
-                    GetMissingPropertyDeclarations(interfaceBody.PropertyDeclarations, classBody.PropertyDeclarations);
-            }
-
-            return (classMissingResults, interfaceMissingResults);
-        }
-
-
-        private TCollection GetCollectionOfInSet<TCollection, TType>(
-            TCollection items,
-            HashSet<TType> matchSet) where TCollection : ICollection<TType>, new()
-        {
-            if (EqualityComparer<TCollection>.Default.Equals(items, default)) { return default; }
-            
-            var matching = new TCollection();
-            foreach (var item in items)
-            {
-                if (matchSet.Contains(item))
-                {
-                    matching.Add(item.Copy());
-                }
-            }
-            return matching;
-        }
-
-
-        public ClassInterfaceDeclaration GetInterfaceFromClass(
-            ClassInterfaceDeclaration classDeclaration,
-            string interfaceIdentifier)
-        {
-            var interfaceDeclaration = new ClassInterfaceDeclaration()
-            {
-                IsInterface = true,
-                Modifiers = GetCollectionOfInSet(classDeclaration?.Modifiers, Modifiers.Interface),
-                Identifier = interfaceIdentifier,
-                TypeParameters = classDeclaration?.TypeParameters?.Copy()
-            };
-
-            var methods = classDeclaration?.Body?.MethodDeclarations;
-            if (methods != null && methods.Count > 0)
-            {
-                foreach (var method in methods)
-                {
-                    var newMethod = new MethodDeclaration()
-                    {
-                        Modifiers = GetCollectionOfInSet(method?.Modifiers, Modifiers.InterfaceMethod),
-                        ReturnType = method.ReturnType.Copy(),
-                        Identifier = method.Identifier.Copy(),
-                        TypeParameters = method?.TypeParameters?.Copy(),
-                        FormalParameterList = method?.FormalParameterList?.Copy()
-                    };
-                    interfaceDeclaration.Body.MethodDeclarations.Add(newMethod);
-                }
-            }
-
-            var properties = classDeclaration?.Body?.PropertyDeclarations;
-            if (properties != null && properties.Count > 0)
-            {
-                foreach (var property in properties)
-                {
-                    var newProperty = new PropertyDeclaration()
-                    {
-                        Modifiers = GetCollectionOfInSet(property?.Modifiers, Modifiers.InterfaceProperty),
-                        Type = property.Type.Copy(),
-                        Identifier = property.Identifier.Copy(),
-                        Body = property?.Body?.Copy()
-                    };
-                    interfaceDeclaration.Body.PropertyDeclarations.Add(newProperty);
-                }
-            }
-
-            return interfaceDeclaration;
-        }
-
-
-        public ClassInterfaceDeclaration GetClassFromInterface(
-            ClassInterfaceDeclaration interfaceDeclaration, 
-            string classIdentifier)
-        {
-            var classDeclaration = new ClassInterfaceDeclaration()
-            {
-                IsInterface = false,
-                Modifiers = GetCollectionOfInSet(interfaceDeclaration?.Modifiers, Modifiers.Class),
-                Identifier = classIdentifier,
-                TypeParameters = interfaceDeclaration?.TypeParameters?.Copy(),
-                Base = new ClassInterfaceBase()
-            };
-            classDeclaration.Base.InterfaceTypeList.Add(
-                interfaceDeclaration.Identifier
-                    + _cSharpCommonStgService.RenderTypeParamList(classDeclaration.TypeParameters)
-            );
-            foreach (var typeParam in classDeclaration.TypeParameters)
-            {
-                typeParam.VarianceAnnotation = null;
-            }
-
-            var methods = interfaceDeclaration?.Body?.MethodDeclarations;
-            if (methods != null && methods.Count > 0)
-            {
-                foreach (var method in methods)
-                {
-                    var newMethod = new MethodDeclaration()
-                    {
-                        Modifiers = GetCollectionOfInSet(method?.Modifiers, Modifiers.Method) ?? new List<string>(),
-                        ReturnType = method.ReturnType.Copy(),
-                        Identifier = method.Identifier.Copy(),
-                        TypeParameters = method?.TypeParameters?.Copy(),
-                        FormalParameterList = method?.FormalParameterList?.Copy()
-                    };
-                    if (!newMethod.Modifiers.Contains(Keywords.Public))
-                    {
-                        newMethod.Modifiers.Insert(0, Keywords.Public);
-                    }
-                    classDeclaration.Body.MethodDeclarations.Add(newMethod);
-                }
-            }
-
-            var properties = interfaceDeclaration?.Body?.PropertyDeclarations;
-            if (properties != null && properties.Count > 0)
-            {
-                foreach (var property in properties)
-                {
-                    var newProperty = new PropertyDeclaration()
-                    {
-                        Modifiers = GetCollectionOfInSet(property?.Modifiers, Modifiers.Property) ?? new List<string>(),
-                        Type = property.Type.Copy(),
-                        Identifier = property.Identifier.Copy(),
-                        Body = property?.Body?.Copy()
-                    };
-                    newProperty.Modifiers.Add(Keywords.Public);
-                    classDeclaration.Body.PropertyDeclarations.Add(newProperty);
-                }
-            }
-
-            return classDeclaration;
-        }
-
-        public string GenerateServiceNamespaceDeclaration(
+        public ServiceFile ScrapeServiceInterface(
+            CSharpParserWrapper serviceInterfaceParser,
+            string serviceInterfaceName,
             string serviceNamespace,
-            ClassInterfaceDeclaration serviceDeclaration)
+            List<TypeParameter> serviceTypeParameters)
         {
-            return "\r\n\r\n" +
-                _serviceCommandStgService.RenderServiceNamespaceDeclaration(
-                    serviceNamespace,
-                    serviceDeclaration);
+            var tree = serviceInterfaceParser.GetParseTree();
+            var visitor = _serviceInterfaceScraperFactory.Create(
+                serviceInterfaceParser.Tokens,
+                serviceInterfaceName,
+                serviceNamespace,
+                serviceTypeParameters);
+            visitor.Visit(tree);
+            return visitor.Results;
         }
 
-
-        private HashSet<string> GetMissingStrings(IEnumerable<string> set1, IEnumerable<string> set2)
+        public ServiceFile ScrapeServiceClass(
+            CSharpParserWrapper serviceClassParser,
+            string serviceClassName,
+            string serviceNamespace,
+            List<TypeParameter> serviceTypeParameters)
         {
-            if (set2 is null)
-            {
-                return new HashSet<string>();
-            }
-            var missing = new HashSet<string>(set2);
-            if (set1 != null)
-            {
-                missing.ExceptWith(set1);
-            }
-            return missing;
+            var tree = serviceClassParser.GetParseTree();
+            var visitor = _serviceClassScraperFactory.Create(
+                serviceClassParser.Tokens,
+                serviceClassName,
+                serviceNamespace,
+                serviceTypeParameters);
+            visitor.Visit(tree);
+            return visitor.Results;
         }
 
-        private List<MethodDeclaration> GetMissingMethodDeclarations(
-            IEnumerable<MethodDeclaration> set1,
-            IEnumerable<MethodDeclaration> set2)
+        public string GetInterfaceServiceFileFromClass(
+            ServiceFile classServiceFile,
+            string serviceInterfaceName,
+            string serviceNamespace)
         {
-            var missing = new List<MethodDeclaration>();
-            if (set2 is null)
-            {
-                return missing;
-            }
-            if (set1 is null)
-            {
-                return set2.Copy().ToList();
-            }
+            var interfaceDeclaration = _serviceCommandParserService.GetInterfaceFromClass(
+                classServiceFile.ServiceDeclaration,
+                serviceInterfaceName);
 
-            foreach (var item2 in set2)
-            {
-                bool isMissing = true;
-                foreach (var item1 in set1)
+            return _serviceCommandStgService.RenderServiceFile(
+                usingDirectives: classServiceFile.UsingDirectives,
+                serviceNamespace: serviceNamespace,
+                service: interfaceDeclaration);
+        }
+
+        public string GetClassServiceFileFromInterface(
+            ServiceFile interfaceServiceFile,
+            string serviceClassName,
+            string serviceNamespace)
+        {
+            var classDeclaration = _serviceCommandParserService.GetClassFromInterface(
+                interfaceServiceFile.ServiceDeclaration,
+                serviceClassName);
+
+            return _serviceCommandStgService.RenderServiceFile(
+                usingDirectives: interfaceServiceFile.UsingDirectives,
+                serviceNamespace: serviceNamespace,
+                service: classDeclaration);
+        }
+
+        public string InjectDataIntoServiceInterface(
+            ServiceFile interfaceServiceFile,
+            CSharpParserWrapper serviceInterfaceParser,
+            string serviceInterfaceName,
+            string tabString = null)
+        {
+            var tree = serviceInterfaceParser.GetParseTree();
+            var visitor = _serviceInterfaceInjectorFactory.Create(
+                serviceInterfaceParser.Tokens,
+                serviceClassInterfaceName: serviceInterfaceName,
+                serviceFile: interfaceServiceFile,
+                tabString: tabString
+            );
+            visitor.Visit(tree);
+
+            return visitor.IsModified ? visitor.Rewriter.GetText() : null;
+        }
+
+        public string InjectDataIntoServiceClass(
+            ServiceFile classServiceFile,
+            CSharpParserWrapper serviceClassParser,
+            string serviceClassName,
+            string tabString = null)
+        {
+            var tree = serviceClassParser.GetParseTree();
+            var visitor = _serviceClassInjectorFactory.Create(
+                tokenStream: serviceClassParser.Tokens,
+                serviceClassInterfaceName: serviceClassName,
+                serviceFile: classServiceFile,
+                tabString: tabString
+            );
+            visitor.Visit(tree);
+
+            return visitor.IsModified ? visitor.Rewriter.GetText() : null;
+        }
+
+        public string RegisterServiceInStartup(
+            CSharpParserWrapper startupParser,
+            string rootNamespace,
+            string serviceNamespace,
+            string serviceName,
+            bool hasTypeParameters,
+            ServiceLifetime serviceLifespan,
+            string tabString = null)
+        {
+            var startupTree = startupParser.GetParseTree();
+
+            var serviceStartupRegistration = _serviceStartupRegistrationFactory.Create(
+                tokenStream: startupParser.Tokens,
+                rootNamespace: rootNamespace,
+                startupRegInfo: new StartupRegistrationInfo()
                 {
-                    if (Equivalent(item1, item2))
-                    {
-                        isMissing = false;
-                        break;
-                    }
-                }
-                if (isMissing)
-                {
-                    missing.Add(item2.Copy());
-                }
-            }
+                    ServiceNamespace = serviceNamespace,
+                    ServiceName = serviceName,
+                    HasTypeParameters = hasTypeParameters,
+                    ServiceLifespan = serviceLifespan
+                },
+                tabString: tabString);
+            serviceStartupRegistration.Visit(startupTree);
 
-            return missing;
+            return serviceStartupRegistration.IsModified ? serviceStartupRegistration.Rewriter.GetText() : null;
         }
 
-        private List<PropertyDeclaration> GetMissingPropertyDeclarations(
-            IEnumerable<PropertyDeclaration> set1,
-            IEnumerable<PropertyDeclaration> set2)
+        public string RegisterServicesInStartup(
+            CSharpParserWrapper startupParser,
+            string rootNamespace,
+            List<StartupRegistrationInfo> startupRegInfoList,
+            string tabString = null)
         {
-            var missing = new List<PropertyDeclaration>();
-            if (set2 is null)
-            {
-                return missing;
-            }
-            if (set1 is null)
-            {
-                return set2.Copy().ToList();
-            }
+            var startupTree = startupParser.GetParseTree();
 
-            foreach (var item2 in set2)
-            {
-                bool isMissing = true;
-                foreach (var item1 in set1)
-                {
-                    if (Equivalent(item1, item2))
-                    {
-                        isMissing = false;
-                        break;
-                    }
-                }
-                if (isMissing)
-                {
-                    missing.Add(item2.Copy());
-                }
-            }
+            var serviceStartupRegistration = _serviceStartupRegistrationFactory.Create(
+                tokenStream: startupParser.Tokens,
+                rootNamespace: rootNamespace,
+                startupRegInfoList: startupRegInfoList,
+                tabString: tabString);
+            serviceStartupRegistration.Visit(startupTree);
 
-            return missing;
+            return serviceStartupRegistration.IsModified ? serviceStartupRegistration.Rewriter.GetText() : null;
         }
 
-
-        private bool Equivalent(TypeParameter first, TypeParameter second)
+        public string InjectServiceIntoController(
+            CSharpParserWrapper controllerInjectorParser,
+            string constructorClassName,
+            string constructorClassNamespace,
+            string serviceIdentifier,
+            string serviceNamespace,
+            string serviceInterfaceType,
+            FieldDeclaration fieldDeclaration,
+            FixedParameter constructorParameter,
+            SimpleAssignment constructorAssignment,
+            ConstructorDeclaration constructorDeclaration,
+            string tabString = null)
         {
-            if (first?.TypeParam != second?.TypeParam) { return false; }
-            if (first?.Constraints.Count != second?.Constraints.Count) { return false; }
+            var controllerInjectorTree = controllerInjectorParser.GetParseTree();
 
-            var firstConstraints = StringEnumerableToMinifiedHashSet(first?.Constraints);
-            var secondConstraints = StringEnumerableToMinifiedHashSet(second?.Constraints);
+            var serviceControllerInjector = _serviceConstructorInjectorFactory.Create(
+                controllerInjectorParser.Tokens,
+                constructorClassName: constructorClassName,
+                constructorClassNamespace: constructorClassNamespace,
+                serviceIdentifier: serviceIdentifier,
+                serviceNamespace: serviceNamespace,
+                serviceInterfaceType: serviceInterfaceType,
+                fieldDeclaration: fieldDeclaration,
+                constructorParameter: constructorParameter,
+                constructorAssignment: constructorAssignment,
+                constructorDeclaration: constructorDeclaration,
+                tabString: tabString);
+            serviceControllerInjector.Visit(controllerInjectorTree);
 
-            if (!firstConstraints.SetEquals(secondConstraints)) { return false; }
-
-            return true;
-        }
-
-        private bool Equivalent(FixedParameter first, FixedParameter second)
-        {
-            if (first?.ParameterModifier != second?.ParameterModifier) { return false; }
-            if (_stringUtilService.MinifyString(first?.Type) != _stringUtilService.MinifyString(second?.Type))
-            {
-                return false;
-            }
-            return true;
-        }
-
-        private bool Equivalent(List<FixedParameter> first, List<FixedParameter> second)
-        {
-            if (first?.Count != second?.Count) { return false; }
-            for (int i = 0; i < first?.Count; ++i)
-            {
-                if (!Equivalent(first[i], second[i])) { return false; }
-            }
-            return true;
-        }
-
-        private bool Equivalent(ParameterArray first, ParameterArray second)
-        {
-            if (_stringUtilService.MinifyString(first?.Type) != _stringUtilService.MinifyString(second?.Type))
-            {
-                return false;
-            }
-            return true;
-        }
-
-        private bool Equivalent(MethodDeclaration first, MethodDeclaration second)
-        {
-            if (_stringUtilService.MinifyString(first?.ReturnType) !=
-                _stringUtilService.MinifyString(second?.ReturnType))
-            {
-                return false;
-            }
-            if (_stringUtilService.MinifyString(first?.Identifier) !=
-                _stringUtilService.MinifyString(second?.Identifier))
-            {
-                return false;
-            }
-            if (!Equivalent(first?.TypeParameters, second?.TypeParameters)) { return false; }
-            if (!Equivalent(first?.FormalParameterList, second?.FormalParameterList)) { return false; }
-
-            return true;
-        }
-
-        private bool Equivalent(List<TypeParameter> first, List<TypeParameter> second)
-        {
-            if (first?.Count != second?.Count) { return false; }
-            for (int i = 0; i < first?.Count; ++i)
-            {
-                if (!Equivalent(first[i], second[i])) { return false; }
-            }
-            return true;
-        }
-
-        private bool Equivalent(PropertyDeclaration first, PropertyDeclaration second)
-        {
-            if (_stringUtilService.MinifyString(first?.Type) != _stringUtilService.MinifyString(second?.Type))
-            {
-                return false;
-            }
-            if (first?.Identifier != second?.Identifier) { return false; }
-            if (!Equivalent(first?.Body, second?.Body)) { return false; }
-
-            return true;
-        }
-
-        private bool Equivalent(PropertyBody first, PropertyBody second)
-        {
-            if (first?.HasGetAccessor != second?.HasGetAccessor) { return false; }
-            if (first?.HasSetAccessor != second?.HasSetAccessor) { return false; }
-            return true;
-        }
-
-        private bool Equivalent(FormalParameterList first, FormalParameterList second)
-        {
-            if (!Equivalent(first?.ParameterArray, second?.ParameterArray)) { return false; }
-            if (!Equivalent(first?.FixedParameters, second?.FixedParameters)) { return false; }
-            return true;
-        }
-
-        private HashSet<string> StringEnumerableToMinifiedHashSet(IEnumerable<string> stringEnumerable)
-        {
-            var hashSet = new HashSet<string>();
-
-            foreach (var constraint in stringEnumerable)
-            {
-                hashSet.Add(_stringUtilService.MinifyString(constraint));
-            }
-            return hashSet;
+            return serviceControllerInjector.IsModified ? serviceControllerInjector.Rewriter.GetText() : null;
         }
     }
 }

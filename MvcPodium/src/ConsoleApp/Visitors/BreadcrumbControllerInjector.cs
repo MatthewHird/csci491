@@ -1,92 +1,95 @@
-using Antlr4.Runtime;
-using Antlr4.Runtime.Misc;
-using MvcPodium.ConsoleApp.Models.CSharpCommon;
-using MvcPodium.ConsoleApp.Services;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using Antlr4.Runtime;
+using Antlr4.Runtime.Misc;
+using MvcPodium.ConsoleApp.Constants.CSharpGrammar;
+using MvcPodium.ConsoleApp.Models.BreadcrumbCommand;
+using MvcPodium.ConsoleApp.Models.CSharpCommon;
+using MvcPodium.ConsoleApp.Services;
 
 namespace MvcPodium.ConsoleApp.Visitors
 {
-    public class ServiceConstructorInjector : CSharpParserBaseVisitor<object>
+    public class BreadcrumbControllerInjector : CSharpParserBaseVisitor<object>
     {
         private readonly IStringUtilService _stringUtilService;
         private readonly ICSharpParserService _cSharpParserService;
+        private readonly IBreadcrumbCommandParserService _breadcrumbCommandParserService;
         private readonly ICSharpCommonStgService _cSharpCommonStgService;
+
         private readonly Stack<string> _currentNamespace;
+        private readonly Stack<string> _currentClass;
 
-        private readonly string _constructorClassName;
-        private readonly string _constructorClassNamespace;
-        private readonly string _serviceIdentifier;
-        private readonly string _serviceNamespace;
-        private readonly string _serviceInterfaceType;
+        private readonly Stack<bool> _isControllerClass;
+        private readonly Stack<bool> _isClassModified;
 
-        private readonly FieldDeclaration _fieldDeclaration;
-        private readonly FixedParameter _constructorParameter;
-        private readonly SimpleAssignment _constructorAssignment;
-        private readonly ConstructorDeclaration _constructorDeclaration;
-        private readonly string _tabString;
+        private readonly string _breadcrumbServiceNamespace;
+        private readonly string _controllerRootNamespace;
+        private readonly string _defaultAreaBreadcrumbServiceRootName;
 
-        public bool IsModified { get; private set; }
+        public ControllerDictionary ControllerDict { get; private set; }
 
         public TokenStreamRewriter Rewriter { get; }
         public BufferedTokenStream Tokens { get; }
+        public bool IsModified { get; private set; }
 
-        public ServiceConstructorInjector(
+        private readonly string _tabString;
+
+        public BreadcrumbControllerInjector(
             IStringUtilService stringUtilService,
             ICSharpParserService cSharpParserService,
+            IBreadcrumbCommandParserService breadcrumbCommandParserService,
             ICSharpCommonStgService cSharpCommonStgService,
             BufferedTokenStream tokenStream,
-            string constructorClassName,
-            string constructorClassNamespace,
-            string serviceIdentifier,
-            string serviceNamespace,
-            string serviceInterfaceType,
-            FieldDeclaration fieldDeclaration,
-            FixedParameter constructorParameter,
-            SimpleAssignment constructorAssignment,
-            ConstructorDeclaration constructorDeclaration,
-            string tabString = null)
+            ControllerDictionary controllerDictionary,
+            string breadcrumbServiceNamespace,
+            string controllerRootNamespace,
+            string defaultAreaBreadcrumbServiceRootName,
+            string tabString)
         {
             _stringUtilService = stringUtilService;
             _cSharpParserService = cSharpParserService;
+            _breadcrumbCommandParserService = breadcrumbCommandParserService;
             _cSharpCommonStgService = cSharpCommonStgService;
             Tokens = tokenStream;
             Rewriter = new TokenStreamRewriter(tokenStream);
-            _constructorClassName = constructorClassName;
-            _constructorClassNamespace = constructorClassNamespace;
-            _serviceIdentifier = serviceIdentifier;
-            _serviceNamespace = serviceNamespace;
-            _serviceInterfaceType = serviceInterfaceType;
-            _fieldDeclaration = fieldDeclaration;
-            _constructorParameter = constructorParameter;
-            _constructorAssignment = constructorAssignment;
-            _constructorDeclaration = constructorDeclaration;
+            ControllerDict = controllerDictionary;
+            _breadcrumbServiceNamespace = breadcrumbServiceNamespace;
+            _controllerRootNamespace = controllerRootNamespace;
+            _defaultAreaBreadcrumbServiceRootName = defaultAreaBreadcrumbServiceRootName;
             _tabString = tabString;
             _currentNamespace = new Stack<string>();
+            _currentClass = new Stack<string>();
+            _isControllerClass = new Stack<bool>();
+            _isControllerClass.Push(false);
+            _isClassModified = new Stack<bool>();
+            _isClassModified.Push(false);
             IsModified = false;
         }
 
         public override object VisitCompilation_unit([NotNull] CSharpParser.Compilation_unitContext context)
         {
-            var missingUsingDirectives = _cSharpParserService.GetUsingDirectivesNotInContext(
-                context, new List<string>(){ _serviceNamespace });
+            VisitChildren(context);
 
-            if (missingUsingDirectives.Count > 0)
+            if (IsModified)
             {
-                var usingStopIndex = _cSharpParserService.GetUsingStopIndex(context);
+                var missingUsingDirectives = _cSharpParserService.GetUsingDirectivesNotInContext(
+                context, new List<string>() { _breadcrumbServiceNamespace });
 
-                var usingDirectiveStr = _cSharpParserService.GenerateUsingDirectives(
-                    missingUsingDirectives.ToList(),
-                    usingStopIndex.Equals(context.Start));
+                if (missingUsingDirectives.Count > 0)
+                {
+                    var usingStopIndex = _cSharpParserService.GetUsingStopIndex(context);
 
-                IsModified = true;
-                Rewriter.InsertAfter(usingStopIndex, usingDirectiveStr);
+                    var usingDirectiveStr = _cSharpParserService.GenerateUsingDirectives(
+                        missingUsingDirectives.ToList(),
+                        usingStopIndex.Equals(context.Start));
+
+                    Rewriter.InsertAfter(usingStopIndex, usingDirectiveStr);
+                }
             }
 
-            VisitChildren(context);
             return null;
         }
 
@@ -100,11 +103,63 @@ namespace MvcPodium.ConsoleApp.Visitors
 
         public override object VisitClass_declaration([NotNull] CSharpParser.Class_declarationContext context)
         {
-            var currentNamespace = string.Join(".", _currentNamespace.ToArray().Reverse());
+            _currentClass.Push(context.identifier().GetText());
 
-            if (context.identifier().GetText() == _constructorClassName 
-                && currentNamespace == _constructorClassNamespace)
+            var classBaseType = context?.class_base()?.class_type()?.GetText();
+
+            _isControllerClass.Push(classBaseType == "Controller");
+            _isClassModified.Push(false);
+
+            VisitChildren(context);
+
+            if (_isClassModified.Peek() && _isControllerClass.Peek())
             {
+                var currentNamespace = GetCurrentNamespace();
+                var currentClass = GetCurrentClass();
+                var controllerClass = ControllerDict.NamespaceDict[currentNamespace].ClassDict[currentClass];
+
+                //public string Namespace { get; set; }
+                //public string ControllerRoot { get; set; }
+                //public string Controller { get; set; }
+                var serviceInterfaceName = GetServiceInterfaceName();
+                var controllerServiceIdentifier = "breadcrumbService";
+
+                var fieldDeclaration = new FieldDeclaration()
+                {
+                    Modifiers = new List<string>() { Keywords.Private, Keywords.Readonly },
+                    Type = serviceInterfaceName,
+                    VariableDeclarator = new VariableDeclarator() { Identifier = $"_{controllerServiceIdentifier}" }
+                };
+
+                var constructorParameter = new FixedParameter()
+                {
+                    Type = serviceInterfaceName,
+                    Identifier = controllerServiceIdentifier
+                };
+
+                var constructorAssignment = new SimpleAssignment()
+                {
+                    LeftHandSide = $"_{controllerServiceIdentifier}",
+                    RightHandSide = controllerServiceIdentifier
+                };
+
+                var constructorDeclaration = new ConstructorDeclaration()
+                {
+                    Modifiers = new List<string>() { Keywords.Public },
+                    Identifier = currentClass,
+                    FormalParameterList = new FormalParameterList()
+                    {
+                        FixedParameters = new List<FixedParameter>() { constructorParameter }
+                    },
+                    Body = new ConstructorBody()
+                    {
+                        Statements = new List<Statement>()
+                        {
+                            new Statement() { SimpleAssignment = constructorAssignment }
+                        }
+                    }
+                };
+
                 var preclassWhitespace = Tokens.GetHiddenTokensToLeft(context.Start.TokenIndex, Lexer.Hidden);
 
                 int classBodyTabLevels = 1 + ((preclassWhitespace?.Count ?? 0) > 0 ?
@@ -135,12 +190,12 @@ namespace MvcPodium.ConsoleApp.Visitors
                             var fieldDec = member.field_declaration();
                             finalField = fieldDec.Stop.TokenIndex;
                             finalConstantOrField = fieldDec.Stop.TokenIndex;
-                            if (fieldDec.type_().GetText() == _serviceInterfaceType)
+                            if (fieldDec.type_().GetText() == serviceInterfaceName)
                             {
                                 foreach (var varDec in fieldDec.variable_declarators().variable_declarator())
                                 {
-                                    if (varDec.identifier().GetText() == 
-                                        $"_{_serviceIdentifier}")
+                                    if (varDec.identifier().GetText() ==
+                                        $"_{controllerServiceIdentifier}")
                                     {
                                         hasServiceField = true;
                                         break;
@@ -171,14 +226,14 @@ namespace MvcPodium.ConsoleApp.Visitors
                 if (!hasServiceField)
                 {
                     fieldStringBuilder.Append(_cSharpParserService.GenerateFieldDeclaration(
-                        _fieldDeclaration,
+                        fieldDeclaration,
                         classBodyTabLevels,
                         _tabString));
                 }
 
                 if (constructorContext is null)
                 {
-                    constructorStopIndex = finalProperty 
+                    constructorStopIndex = finalProperty
                         ?? finalConstantOrField
                         ?? fieldStopIndex;
 
@@ -187,7 +242,7 @@ namespace MvcPodium.ConsoleApp.Visitors
 
                     constructorStringBuilder.Append(
                         _cSharpParserService.GenerateConstructorDeclaration(
-                            _constructorDeclaration,
+                            constructorDeclaration,
                             classBodyTabLevels,
                             _tabString));
                 }
@@ -204,8 +259,8 @@ namespace MvcPodium.ConsoleApp.Visitors
                         {
                             foreach (var fixedParam in fixedParams.fixed_parameter())
                             {
-                                if (fixedParam.type_().GetText() == _serviceInterfaceType
-                                    && fixedParam.identifier().GetText() == _serviceIdentifier)
+                                if (fixedParam.type_().GetText() == serviceInterfaceName
+                                    && fixedParam.identifier().GetText() == controllerServiceIdentifier)
                                 {
                                     hasCtorParam = true;
                                     break;
@@ -216,12 +271,12 @@ namespace MvcPodium.ConsoleApp.Visitors
                     }
                     if (!hasCtorParam)
                     {
-                        var ctorParam = _cSharpCommonStgService.RenderFixedParameter(_constructorParameter);
+                        var ctorParam = _cSharpCommonStgService.RenderFixedParameter(constructorParameter);
 
                         int fixedParamStopIndex = finalFixedParam?.Stop?.TokenIndex
                             ?? constructorContext.constructor_declarator().OPEN_PARENS().Symbol.TokenIndex;
-                        
-                        var paramStringBuilder= new StringBuilder();
+
+                        var paramStringBuilder = new StringBuilder();
                         if (finalFixedParam != null)
                         {
                             var preFinalParamWhitespace = Tokens.GetHiddenTokensToLeft(
@@ -230,7 +285,7 @@ namespace MvcPodium.ConsoleApp.Visitors
                             int finalParamtabs = (preFinalParamWhitespace?.Count ?? 0) > 0 ?
                                 _stringUtilService.CalculateTabLevels(
                                     preFinalParamWhitespace?[0]?.Text ?? string.Empty, _tabString) : 0;
-                            
+
                             if (finalParamtabs > 0)
                             {
                                 paramStringBuilder.Append(",\r\n");
@@ -282,7 +337,7 @@ namespace MvcPodium.ConsoleApp.Visitors
                                     IsModified = true;
                                     Rewriter.InsertBefore(
                                         formalParamList.parameter_array().Start.TokenIndex,
-                                        "\r\n" + 
+                                        "\r\n" +
                                             _stringUtilService.TabString(string.Empty, ctorBodyTabLevels, _tabString));
                                 }
                             }
@@ -296,7 +351,7 @@ namespace MvcPodium.ConsoleApp.Visitors
                         }
                     }
 
-                    string ctorAssignString = _cSharpCommonStgService.RenderSimpleAssignment(_constructorAssignment);
+                    string ctorAssignString = _cSharpCommonStgService.RenderSimpleAssignment(constructorAssignment);
 
                     var constructorBody = constructorContext?.constructor_body();
                     if (constructorBody.SEMICOLON() != null)
@@ -313,8 +368,8 @@ namespace MvcPodium.ConsoleApp.Visitors
                         var statementList = block?.statement_list()?.GetText();
                         if (statementList != null)
                         {
-                            var assignmentMatchString = 
-                                $@"[\s;{{]_{_serviceIdentifier}\s*=\s*{_serviceIdentifier}\s*;";
+                            var assignmentMatchString =
+                                $@"[\s;{{]_{controllerServiceIdentifier}\s*=\s*{controllerServiceIdentifier}\s*;";
 
                             hasCtorAssignment = Regex.Match(statementList, assignmentMatchString).Success;
                         }
@@ -370,9 +425,146 @@ namespace MvcPodium.ConsoleApp.Visitors
                         Rewriter.InsertAfter(Tokens.Get(constructorStopIndex ?? -1), constructorString);
                     }
                 }
+
             }
-            VisitChildren(context);
+
+            _ = _isClassModified.Pop();
+            _ = _isControllerClass.Pop();
+            _ = _currentClass.Pop();
             return null;
+        }
+
+        public override object VisitMethod_declaration([NotNull] CSharpParser.Method_declarationContext context)
+        {
+            if (_isControllerClass.Peek())
+            {
+                bool isNonAction = false;
+                bool isPublic = false;
+
+                var attributes = context.method_header()?.attributes()?.attribute_section();
+                if (attributes != null)
+                {
+                    foreach (var attributeSection in attributes)
+                    {
+                        foreach (var attribute in attributeSection.attribute_list().attribute())
+                        {
+                            if (attribute.GetText() == "NonAction")
+                            {
+                                isNonAction = true;
+                            }
+                        }
+                    }
+                }
+
+                var modifiers = context.method_header()?.method_modifier();
+                if (modifiers != null)
+                {
+                    foreach (var modifier in modifiers)
+                    {
+                        if (modifier.GetText() == Keywords.Public)
+                        {
+                            isPublic = true;
+                        }
+                    }
+                }
+
+                if (!isNonAction && isPublic)
+                {
+                    // Add endpoint info to results
+                    var currentNamespace = GetCurrentNamespace();
+                    var currentClass = GetCurrentClass();
+                    var controllerRootName = GetControllerRootName(currentClass);
+                    var actionName = context.method_header().member_name().identifier().GetText();
+                    bool? hasId = false;
+
+                    var fixedParams = context.method_header()?.formal_parameter_list()
+                        ?.fixed_parameters()?.fixed_parameter();
+                    if (fixedParams != null)
+                    {
+                        foreach (var fixedParam in fixedParams)
+                        {
+                            if (Regex.Match(fixedParam?.type_()?.GetText(), @"^int\??$").Success
+                                && fixedParam?.identifier()?.GetText() == "id")
+                            {
+                                hasId = true;
+                            }
+                        }
+                    }
+
+                    if (ControllerDict.NamespaceDict.ContainsKey(currentNamespace)
+                        && ControllerDict.NamespaceDict[currentNamespace]
+                            .ClassDict.ContainsKey(currentClass)
+                        && ControllerDict.NamespaceDict[currentNamespace]
+                            .ClassDict[currentClass].ActionDict.ContainsKey(actionName))
+                    {
+                        if (!Regex.Match(
+                            context.method_body().GetText(), @"ViewData\[""BreadcrumbNode""\]\s*=").Success)
+                        {
+                            var preMethodWhitespace = Tokens.GetHiddenTokensToLeft(
+                                context.Start.TokenIndex, Lexer.Hidden);
+
+                            int tabLevels = 1 + ((preMethodWhitespace?.Count ?? 0) > 0
+                                ? _stringUtilService.CalculateTabLevels(
+                                    preMethodWhitespace[0]?.Text ?? string.Empty, _tabString)
+                                : 0);
+
+                            int openBraceIndex = context.method_body()?.block()?.OPEN_BRACE().Symbol.TokenIndex ?? -1;
+
+                            if (openBraceIndex > -1)
+                            {
+                                var assignmentString = _breadcrumbCommandParserService.GenerateBreadcrumbAssignment(
+                                    controllerRootName, actionName, hasId, tabLevels, _tabString);
+                                SetIsClassModifiedToTrue();
+                                IsModified = true;
+                                Rewriter.InsertAfter(openBraceIndex, assignmentString);
+                            }
+                        }
+                    }
+
+                }
+
+            }
+
+            VisitChildren(context);
+
+            return null;
+        }
+
+        private string GetCurrentClass()
+        {
+            return string.Join(".", _currentClass.ToArray().Reverse());
+        }
+
+        private string GetCurrentNamespace()
+        {
+            return string.Join(".", _currentNamespace.ToArray().Reverse());
+        }
+
+        private string GetControllerRootName(string controllerClassName)
+        {
+            return controllerClassName.EndsWith("Controller")
+                ? controllerClassName.Substring(0, controllerClassName.Length - "Controller".Length) 
+                : controllerClassName;
+        }
+
+        private string GetServiceInterfaceName()
+        {
+            var namespaceSuffix = Regex.Replace(
+                    GetCurrentNamespace(), "^" + Regex.Escape(_controllerRootNamespace + "."), string.Empty);
+            var serviceNamePrefix = namespaceSuffix.Replace(".", string.Empty);
+            var serviceClassName = serviceNamePrefix == string.Empty
+                ? _defaultAreaBreadcrumbServiceRootName
+                : serviceNamePrefix + "BreadcrumbService";
+            return "I" + serviceClassName;
+        }
+
+        private void SetIsClassModifiedToTrue()
+        {
+            if (!_isClassModified.Peek())
+            {
+                _ = _isClassModified.Pop();
+                _isClassModified.Push(true);
+            }
         }
     }
 }

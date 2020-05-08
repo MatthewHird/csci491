@@ -4,7 +4,7 @@ ClassDeclaration(attributes, modifiers, identifier, typeParameters, base, body) 
 <if(attributes)><attributes><\n><endif><\\>
 <modifiers:{modifier|<modifier> }>class <identifier><\\>
 <TypeParamList(typeParameters)><ClassBase(base.ClassType, base.InterfaceTypeList)><\\>
-<TypeParamConstraints(typeParameters)><\n><@classBody><ClassBody(body.PropertyDeclarations, body.MethodDeclarations)><@end>
+<TypeParamConstraints(typeParameters)><\n><ClassBody(body.PropertyDeclarations, body.MethodDeclarations)>
 >>
 
 
@@ -173,10 +173,10 @@ ParameterArray(attributes, type, identifier) ::= <<
 >>
 
 
-FieldDeclaration(attributes, modifiers, type, variableDeclarators) ::= <<
+FieldDeclaration(attributes, modifiers, type, variableDeclarator) ::= <<
 <if(attributes)><attributes><\n><endif><\\>
 <modifiers:{modifier|<modifier> }><type> <\\>
-<variableDeclarators:{varDec|<VariableDeclarator(varDec.identifier, varDec.variableInitializer)>}; separator=", ">;
+<VariableDeclarator(variableDeclarator.identifier, variableDeclarator.variableInitializer)>;
 >>
 
 
@@ -211,11 +211,11 @@ Argument(name, value) ::= <<
 
 ConstructorBody(statements) ::= <<
 {
-    <statements:{statement|<Statement(statement.LeftHandSide, statement.RightHandSide)>}; separator="\n">
+    <statements:{statement|<Statement(statement.SimpleAssignment, statement.ElseValue)>}; separator="\n">
 }
 >>
 
 
 Statement(simpleAssignment, elseValue) ::= <<
-<if(simpleAssignment)><SimpleAssignmentStatement(simpleAssignment)><else><elseValue><endif>
+<if(simpleAssignment)><SimpleAssignmentStatement(simpleAssignment.LeftHandSide, simpleAssignment.RightHandSide)><else><elseValue><endif>
 >>

@@ -1,6 +1,8 @@
-﻿using Antlr4.Runtime;
+﻿using System.Collections.Generic;
+using Antlr4.Runtime;
+using MvcPodium.ConsoleApp.Models.ServiceCommand;
 using MvcPodium.ConsoleApp.Services;
-
+using static MvcPodium.ConsoleApp.Visitors.ServiceStartupRegistration;
 
 namespace MvcPodium.ConsoleApp.Visitors.Factories
 {
@@ -9,10 +11,13 @@ namespace MvcPodium.ConsoleApp.Visitors.Factories
         ServiceStartupRegistration Create(
             BufferedTokenStream tokenStream,
             string rootNamespace,
-            string serviceNamespace,
-            string serviceName,
-            bool hasTypeParameters,
-            string serviceLifespan,
+            List<StartupRegistrationInfo> startupRegInfoList,
+            string tabString = null);
+
+        ServiceStartupRegistration Create(
+            BufferedTokenStream tokenStream,
+            string rootNamespace,
+            StartupRegistrationInfo startupRegInfo,
             string tabString = null);
     }
 
@@ -35,10 +40,7 @@ namespace MvcPodium.ConsoleApp.Visitors.Factories
         public ServiceStartupRegistration Create(
             BufferedTokenStream tokenStream,
             string rootNamespace,
-            string serviceNamespace,
-            string serviceName,
-            bool hasTypeParameters,
-            string serviceLifespan,
+            List<StartupRegistrationInfo> startupRegInfoList,
             string tabString = null)
         {
             return new ServiceStartupRegistration(
@@ -47,10 +49,20 @@ namespace MvcPodium.ConsoleApp.Visitors.Factories
                 _serviceCommandStgService,
                 tokenStream,
                 rootNamespace,
-                serviceNamespace,
-                serviceName,
-                hasTypeParameters,
-                serviceLifespan,
+                startupRegInfoList,
+                tabString);
+        }
+
+        public ServiceStartupRegistration Create(
+            BufferedTokenStream tokenStream,
+            string rootNamespace,
+            StartupRegistrationInfo startupRegInfo,
+            string tabString = null)
+        {
+            return Create(
+                tokenStream,
+                rootNamespace,
+                new List<StartupRegistrationInfo>() { startupRegInfo },
                 tabString);
         }
     }

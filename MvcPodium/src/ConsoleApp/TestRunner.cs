@@ -10,7 +10,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using MvcPodium.ConsoleApp.Models.Config;
-using MvcPodium.ConsoleApp.Controller;
+using MvcPodium.ConsoleApp.Controllers;
 
 namespace MvcPodium.ConsoleApp
 {

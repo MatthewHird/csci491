@@ -232,26 +232,22 @@ namespace MvcPodium.ConsoleApp.Services
         }
 
 
-        public bool IsUsingDirectiveInContext(
+        public HashSet<string> GetUsingDirectivesNotInContext(
             CSharpParser.Compilation_unitContext context,
-            string usingDirective)
+            List<string> usingDirectives)
         {
-            bool isUsingDirectiveInContext = false;
+            var contextUsingDirectives = context?.using_directive();
 
-            var usingDirectives = context?.using_directive();
+            var contextUsingSet = new HashSet<string>();
 
-            if (usingDirectives != null)
+            if (contextUsingDirectives != null)
             {
-                foreach (var usingDir in usingDirectives)
+                foreach (var usingDir in contextUsingDirectives)
                 {
-                    if (_stringUtilService.MinifyString(usingDir.using_directive_inner().GetText()) == usingDirective)
-                    {
-                        isUsingDirectiveInContext = true;
-                        break;
-                    }
+                    contextUsingSet.Add(_stringUtilService.MinifyString(usingDir.using_directive_inner().GetText()));
                 }
             }
-            return isUsingDirectiveInContext;
+            return _stringUtilService.GetMissingStrings(contextUsingSet, usingDirectives);
         }
 
 
@@ -281,6 +277,7 @@ namespace MvcPodium.ConsoleApp.Services
                 ?? context?.extern_alias_directive()?.LastOrDefault()?.Stop
                 ?? context.OPEN_BRACE().Symbol;
         }
+
 
 
         public string GenerateUsingDirectives(
@@ -330,7 +327,6 @@ namespace MvcPodium.ConsoleApp.Services
             return propertyStringBuilder.ToString();
         }
 
-
         public string GenerateMethodDeclarations(
             List<MethodDeclaration> methodDeclarations,
             int tabLevels = 0,
@@ -363,12 +359,92 @@ namespace MvcPodium.ConsoleApp.Services
         {
             if (classInterfaceDeclaration is null) { return string.Empty; }
             return "\r\n\r\n" +
-                _stringUtilService.TabString(classInterfaceDeclaration.IsInterface
-                    ? _cSharpCommonStgService.RenderInterfaceDeclaration(classInterfaceDeclaration)
-                    : _cSharpCommonStgService.RenderClassDeclaration(classInterfaceDeclaration),
-                tabLevels,
-                tabString);
+                _stringUtilService.TabString(
+                    classInterfaceDeclaration.IsInterface
+                        ? _cSharpCommonStgService.RenderInterfaceDeclaration(classInterfaceDeclaration)
+                        : _cSharpCommonStgService.RenderClassDeclaration(classInterfaceDeclaration),
+                    tabLevels,
+                    tabString);
         }
 
+        public string GenerateFieldDeclaration(
+            FieldDeclaration fieldDeclaration,
+            int tabLevels = 0,
+            string tabString = null)
+        {
+            if (fieldDeclaration is null) { return string.Empty; }
+            return "\r\n" +
+                _stringUtilService.TabString(
+                    _cSharpCommonStgService.RenderFieldDeclaration(fieldDeclaration),
+                    tabLevels,
+                    tabString);
+        }
+
+        public string GenerateConstructorDeclaration(
+            ConstructorDeclaration constructorDeclaration,
+            int tabLevels = 0,
+            string tabString = null)
+        {
+            if (constructorDeclaration is null) { return string.Empty; }
+            return "\r\n\r\n" +
+                _stringUtilService.TabString(
+                    _cSharpCommonStgService.RenderConstructorDeclaration(constructorDeclaration),
+                    tabLevels,
+                    tabString) +
+                "\r\n";
+        }
+
+        public string GenerateFixedParameters(
+            List<FixedParameter> fixedParameters,
+            int tabLevels = 0,
+            string tabString = null,
+            bool isFirstParam = false,
+            bool isSingleLine = false)
+        {
+            if (fixedParameters is null) { return string.Empty; }
+            var stringBuilder = new StringBuilder();
+            bool firstParam = isFirstParam;
+
+            foreach (var fixedParam in fixedParameters)
+            {
+                var ctorParam = _cSharpCommonStgService.RenderFixedParameter(fixedParam);
+
+                if (firstParam)
+                {
+                    firstParam = false;
+                }
+                else
+                {
+                    stringBuilder.Append(
+                        isSingleLine
+                        ? ", "
+                        : ",");
+                }
+                stringBuilder.Append(
+                    isSingleLine
+                    ? ctorParam
+                    : "\r\n" + _stringUtilService.TabString(ctorParam, tabLevels, tabString));
+            }
+
+            return stringBuilder.ToString();
+        }
+
+        public string GenerateSimpleAssignments(
+            List<SimpleAssignment> simpleAssignments,
+            int tabLevels = 0,
+            string tabString = null)
+        {
+            if (simpleAssignments is null) { return string.Empty; }
+            var stringBuilder = new StringBuilder();
+            foreach (var simpleAssignment in simpleAssignments)
+            {
+                stringBuilder.Append("\r\n");
+                stringBuilder.Append(_stringUtilService.TabString(
+                    _cSharpCommonStgService.RenderSimpleAssignment(simpleAssignment),
+                    tabLevels,
+                    tabString));
+            }
+            return stringBuilder.ToString();
+        }
     }
 }

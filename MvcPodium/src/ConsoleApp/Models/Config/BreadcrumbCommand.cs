@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 
 namespace MvcPodium.ConsoleApp.Models.Config
 {
@@ -11,6 +9,11 @@ namespace MvcPodium.ConsoleApp.Models.Config
 
     public class BreadcrumbCommand
     {
+        public string Area { get; set; }
+        public string TargetDirectory { get; set; }
+        public string TargetFile { get; set; }
+        public string BreadcrumbServiceDirectory { get; set; }
+        public bool? IsRecursive { get; set; }
         public string ControllerNamePattern { get; set; }
         public List<InjectedService> InjectedServices { get; set; }
     }

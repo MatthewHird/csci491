@@ -1,5 +1,7 @@
 ﻿
 
+using System.Collections.Generic;
+
 namespace MvcPodium.ConsoleApp.Services
 {
     public interface IStringUtilService
@@ -15,5 +17,7 @@ namespace MvcPodium.ConsoleApp.Services
         string IndentString(string str, string indentString);
 
         int CalculateTabLevels(string str, string tabString = null);
+
+        HashSet<string> GetMissingStrings(IEnumerable<string> set1, IEnumerable<string> set2);
     }
 }

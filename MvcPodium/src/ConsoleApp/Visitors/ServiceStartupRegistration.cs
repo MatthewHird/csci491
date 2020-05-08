@@ -1,5 +1,6 @@
 ﻿using Antlr4.Runtime;
 using Antlr4.Runtime.Misc;
+using Microsoft.Extensions.DependencyInjection;
 using MvcPodium.ConsoleApp.Models.ServiceCommand;
 using MvcPodium.ConsoleApp.Services;
 using System;
@@ -18,15 +19,13 @@ namespace MvcPodium.ConsoleApp.Visitors
         private readonly Stack<string> _currentClass;
 
         private readonly string _rootNamespace;
-        private readonly string _serviceNamespace;
-        private readonly string _serviceName;
-        private readonly bool _hasTypeParameters;
-        private readonly string _serviceLifespan;
+        private readonly List<StartupRegistrationInfo> _startupRegInfoList;
         private readonly string _tabString;
+
 
         private bool _isFoundConfigureServices;
 
-        public bool IsServiceRegistered { get; private set; }
+        public bool IsModified { get; private set; }
 
         public TokenStreamRewriter Rewriter { get; }
         public BufferedTokenStream Tokens { get; }
@@ -37,10 +36,7 @@ namespace MvcPodium.ConsoleApp.Visitors
             IServiceCommandStgService serviceCommandStgService,
             BufferedTokenStream tokenStream,
             string rootNamespace,
-            string serviceNamespace,
-            string serviceName,
-            bool hasTypeParameters,
-            string serviceLifespan,
+            List<StartupRegistrationInfo> startupRegInfoList,
             string tabString = null)
         {
             _stringUtilService = stringUtilService;
@@ -48,33 +44,37 @@ namespace MvcPodium.ConsoleApp.Visitors
             _serviceCommandStgService = serviceCommandStgService;
             Tokens = tokenStream;
             Rewriter = new TokenStreamRewriter(tokenStream);
-            _serviceNamespace = serviceNamespace;
-            _serviceName = serviceName;
-            _hasTypeParameters = hasTypeParameters;
             _rootNamespace = rootNamespace;
-            _serviceLifespan = serviceLifespan;
+            _startupRegInfoList = startupRegInfoList;
             _tabString = tabString;
             _currentNamespace = new Stack<string>();
             _currentClass = new Stack<string>();
+            IsModified = false;
         }
 
         public override object VisitCompilation_unit([NotNull] CSharpParser.Compilation_unitContext context)
         {
             _isFoundConfigureServices = false;
-            IsServiceRegistered = false;
 
-            bool isUsingServiceNamespace = _cSharpParserService.IsUsingDirectiveInContext(
-                context,
-                _serviceNamespace);
+            var usingNamespaceList = new List<string>();
 
-            if (!isUsingServiceNamespace)
+            foreach (var regInfo in _startupRegInfoList)
+            {
+                usingNamespaceList.Add(regInfo.ServiceNamespace);
+            }
+
+            var missingUsingDirectives = _cSharpParserService.GetUsingDirectivesNotInContext(
+                context, usingNamespaceList);
+
+            if (missingUsingDirectives.Count > 0)
             {
                 var usingStopIndex = _cSharpParserService.GetUsingStopIndex(context);
 
-                var usingDirectiveStr = _cSharpParserService.GenerateUsingDirective(
-                    _serviceNamespace,
+                var usingDirectiveStr = _cSharpParserService.GenerateUsingDirectives(
+                    missingUsingDirectives.ToList(),
                     usingStopIndex.Equals(context.Start));
 
+                IsModified = true;
                 Rewriter.InsertAfter(usingStopIndex, usingDirectiveStr);
             }
 
@@ -132,7 +132,7 @@ namespace MvcPodium.ConsoleApp.Visitors
                 string serviceCollectionName = null;
                 foreach (var param in paramList)
                 {
-                    if (param.type_().GetText() == "IServiceCollection")
+                    if (param.type_().GetText() == nameof(IServiceCollection))
                     {
                         serviceCollectionName = param.identifier().GetText();
                         break;
@@ -157,43 +157,55 @@ namespace MvcPodium.ConsoleApp.Visitors
                 //              Else:               services.AddScoped<IMyService, MyService>();
                 //          Use rewriter to insert services.Add[Lifespan] into token stream
                 //          Write parse tree as string to Startup.cs
+                var missingRegInfo = new List<StartupRegistrationInfo>();
 
                 var body = _cSharpParserService.GetTextWithWhitespace(Tokens, method.method_body());
 
-                var match = Regex.Match(body, ServiceRegistrationMatchString());
-
-                if (match.Success)
+                foreach (var regInfo in _startupRegInfoList)
                 {
-                    IsServiceRegistered = true;
-                    return null;
+                    if (!Regex.Match(body, ServiceRegistrationMatchString(regInfo)).Success)
+                    {
+                        missingRegInfo.Add(regInfo);
+                    }
                 }
 
-                if (method?.method_body()?.block() is null)
+                if (missingRegInfo.Count > 0)
                 {
-                    // throw
-                }
-                else
-                {
-                    var closeBranceIndex = method.method_body().block().CLOSE_BRACE().Symbol.TokenIndex;
+                    if (method?.method_body()?.block() is null)
+                    {
+                        // throw
+                    }
+                    else
+                    {
+                        var closeBranceIndex = method.method_body().block().CLOSE_BRACE().Symbol.TokenIndex;
 
-                    var preclassWhitespace = Tokens.GetHiddenTokensToLeft(closeBranceIndex, Lexer.Hidden);
+                        var preclassWhitespace = Tokens.GetHiddenTokensToLeft(closeBranceIndex, Lexer.Hidden);
 
-                    int tabLevels = preclassWhitespace.Count > 0 ?
-                        _stringUtilService.CalculateTabLevels(preclassWhitespace[0].Text, _tabString) : 0;
+                        int tabLevels = (preclassWhitespace?.Count ?? 0) > 0 ?
+                            _stringUtilService.CalculateTabLevels(preclassWhitespace[0]?.Text ?? string.Empty, _tabString) : 0;
 
-                    var startupRegistrationCall = _serviceCommandStgService.RenderServiceStartupRegistrationCall(
-                        serviceName: _serviceName,
-                        hasTypeParameters: _hasTypeParameters,
-                        serviceLifespan: _serviceLifespan);
+                        var regCallStrings = new List<string>();
 
-                    var registrationStatement = 
-                        _stringUtilService.TabString(
-                            serviceCollectionName + startupRegistrationCall, 1, _tabString)
-                        + "\r\n"
-                        + _stringUtilService.TabString(string.Empty, tabLevels, _tabString);
+                        foreach (var regInfo in missingRegInfo)
+                        {
+                            var regCallString = _serviceCommandStgService.RenderServiceStartupRegistrationCall(
+                                serviceName: regInfo.ServiceName,
+                                hasTypeParameters: regInfo.HasTypeParameters,
+                                serviceLifespan: regInfo.ServiceLifespan.ToString());
 
-                    Rewriter.InsertBefore(closeBranceIndex, registrationStatement);
-                    return null;
+                            regCallStrings.Add(serviceCollectionName + regCallString + ";");
+                        }
+                        var registrationStatement = 
+                            "\r\n" +
+                            _stringUtilService.TabString(
+                                string.Join("\r\n", regCallStrings), tabLevels + 1, _tabString) +
+                            "\r\n" +
+                            _stringUtilService.TabString(string.Empty, tabLevels, _tabString);
+
+                        IsModified = true;
+                        Rewriter.InsertBefore(closeBranceIndex, registrationStatement);
+                        return null;
+                    }
                 }
             }
 
@@ -201,12 +213,13 @@ namespace MvcPodium.ConsoleApp.Visitors
             return null;
         }
 
-        private string ServiceRegistrationMatchString()
+        private string ServiceRegistrationMatchString(StartupRegistrationInfo regInfo)
         {
-            return _hasTypeParameters
-                ? $@"\.\s*Add{_serviceLifespan}\s*\(\s*typeof\s*\(\s*I{_serviceName}" +
-                    $@"Service\s*<\s*>\s*\)\s*,\s*typeof\s*\(\s*{_serviceName}Service\s*<\s*>\s*\)\s*\)"
-                : $@"\.\s*Add{_serviceLifespan}\s*<\s*I{_serviceName}Service\s*,\s*{_serviceName}Service\s*>\s*\(\s*\)";
+            return regInfo.HasTypeParameters
+                ? $@"\.\s*Add{regInfo.ServiceLifespan}\s*\(\s*typeof\s*\(\s*I{regInfo.ServiceName}" +
+                    $@"Service\s*<\s*>\s*\)\s*,\s*typeof\s*\(\s*{regInfo.ServiceName}Service\s*<\s*>\s*\)\s*\)"
+                : $@"\.\s*Add{regInfo.ServiceLifespan}\s*<\s*I{regInfo.ServiceName}Service\s*,\s*" +
+                    $@"{regInfo.ServiceName}Service\s*>\s*\(\s*\)";
         }
 
     }

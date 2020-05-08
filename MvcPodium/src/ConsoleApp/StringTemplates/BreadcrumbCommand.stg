@@ -1,32 +1,59 @@
 ﻿import "CSharpCommon.stg"
 
 
-BreadcrumbServiceFile(usingDirectives, breadcrumbNamespace, breadcrumbClass) ::= <<
-<["SmartBreadcrumbs.Nodes", usingDirectives]:{usingDir|<UsingDirective(usingDir)><\n>}>
+BreadcrumbServiceFile(usingDirectives, breadcrumbNamespace, breadcrumbDeclaration) ::= <<
+<UsingDirectives(usingDirectives)>
+<BreadcrumbNamespaceDeclaration(breadcrumbNamespace, breadcrumbDeclaration)><\n>
+>>
+
+
+BreadcrumbNamespaceDeclaration(breadcrumbNamespace, breadcrumbDeclaration) ::= <<
 <NamespaceDeclaration(breadcrumbNamespace)>
 {
-    <BreadcrumbClass(breadcrumbClass)>
-}<\n>
+    <if(breadcrumbDeclaration.IsInterface)><
+BreadcrumbInterfaceDeclaration(
+    breadcrumbDeclaration.Attributes,
+    breadcrumbDeclaration.Modifiers,
+    breadcrumbDeclaration.Identifier,
+    breadcrumbDeclaration.TypeParameters,
+    breadcrumbDeclaration.Base,
+    breadcrumbDeclaration.Body)
+><\n><else><
+BreadcrumbClassDeclaration(
+    breadcrumbDeclaration.Attributes,
+    breadcrumbDeclaration.Modifiers,
+    breadcrumbDeclaration.Identifier,
+    breadcrumbDeclaration.TypeParameters,
+    breadcrumbDeclaration.Base,
+    breadcrumbDeclaration.Body)
+><\n><endif>}
 >>
 
 
-@ClassDeclaration.classBody() ::= <<
-<BreadcrumbBody(
+BreadcrumbClassDeclaration(attributes, modifiers, identifier, typeParameters, base, body) ::= <<
+<if(attributes)><attributes><\n><endif><\\>
+<modifiers:{modifier|<modifier> }>class <identifier><\\>
+<TypeParamList(typeParameters)><ClassBase(base.ClassType, base.InterfaceTypeList)><\\>
+<TypeParamConstraints(typeParameters)><\n><\\>
+<BreadcrumbClassBody(
     body.FieldDeclarations,
     body.ConstructorDeclaration,
-    body.BreadcrumbMethods)>
+    body.MethodDeclarations)
+>
 >>
 
 
-BreadcrumbBody(fieldDeclarations, constructorDeclaration, breadcrumbMethods) ::= <<
-{<if(fieldDeclarations)><fieldDeclarations:{field|<\n>    <
+BreadcrumbClassBody(fieldDeclarations, constructorDeclaration, breadcrumbMethods) ::= <<
+{<if(fieldDeclarations)><fieldDeclarations:{field|
+    <
 FieldDeclaration(
     field.Attributes,
     field.Modifiers,
     field.Type,
     field.VariableDeclarators)
->}><\n><endif><\\>
-<if(constructorDeclaration)><\n>    <
+>}><\n>
+<endif><if(constructorDeclaration)>
+    <
 ConstructorDeclaration(
     constructorDeclaration.Attributes,
     constructorDeclaration.Modifiers,
@@ -34,9 +61,10 @@ ConstructorDeclaration(
     constructorDeclaration.FormalParameterList,
     constructorDeclaration.ConstructorInitializer,
     constructorDeclaration.Body)
-><\n><endif><\\>
-<breadcrumbMethods:{method|<\n>    <
-BreadcrumbMethod(
+><\n>
+<endif><breadcrumbMethods:{method|
+    <
+BreadcrumbClassMethodDeclaration(
     method.ControllerRoot,
     method.Action,
     method.HasId,
@@ -46,18 +74,49 @@ BreadcrumbMethod(
 >>
 
 
-BreadcrumbMethod(controllerRoot, action, hasId, controller, controllerNamePattern) ::= <<
-public MvcBreadcrumbNode <controllerRoot><action>Breadcrumb(<if(hasId)>int? id<endif>)
+BreadcrumbClassMethodDeclaration(controllerRoot, action, hasId, controller, controllerNamePattern) ::= <<
+public MvcBreadcrumbNode <controllerRoot><action>Breadcrumb(<if(hasId)>int? id<endif>)<\n><\\>
 {
-    return new MvcBreadcrumbNode(nameof(<controller>.<action>), <controllerNamePattern>, "<<controller>.<action>>")
+    return new MvcBreadcrumbNode(
+        nameof(<controller>.<action>),
+        <controllerNamePattern>,
+        "<controller>.<action>")
     {
-        Parent = null<if(hasId)>,
-        RouteValues = new { id }<endif>
+        Parent = null<if(hasId)>,<\n>        RouteValues = new { id }<endif>
     };
 }
 >>
-// ControllerNamePattern:
-//      _controllerService.GetRootName\<<controller>>()
+
+
+BreadcrumbInterfaceDeclaration(attributes, modifiers, identifier, typeParameters, base, body) ::= <<
+<if(attributes)><attributes><\n><endif><\\>
+<modifiers:{modifier|<modifier> }>interface <identifier><\\>
+<VariantTypeParamList(typeParameters)><InterfaceBase(base.InterfaceTypeList)><\\>
+<TypeParamConstraints(typeParameters)><\n><\\>
+<BreadcrumbInterfaceBody(
+    body.FieldDeclarations,
+    body.ConstructorDeclaration,
+    body.MethodDeclarations)
+>
+>>
+
+
+BreadcrumbInterfaceBody(fieldDeclarations, constructorDeclaration, breadcrumbMethods) ::= <<
+{<breadcrumbMethods:{method|<\n>    <
+BreadcrumbInterfaceMethodDeclaration(
+    method.ControllerRoot,
+    method.Action,
+    method.HasId,
+    method.Controller,
+    method.ControllerNamePattern)
+><\n>}>}
+>>
+
+
+BreadcrumbInterfaceMethodDeclaration(controllerRoot, action, hasId, controller, controllerNamePattern) ::= <<
+MvcBreadcrumbNode <controllerRoot><action>Breadcrumb(<if(hasId)>int? id = null<endif>);
+>>
+
 
 BreadcrumbAssignment(controllerRoot, action, hasId) ::= <<
 ViewData["BreadcrumbNode"] = _breadcrumbService.<controllerRoot><action>Breadcrumb(<if(hasId)>id<endif>);

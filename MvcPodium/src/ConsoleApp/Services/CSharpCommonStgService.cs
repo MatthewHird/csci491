@@ -116,7 +116,7 @@ namespace MvcPodium.ConsoleApp.Services
             stringTemplate.Add(StgCSharpCommon.FieldDeclaration.Params.Attributes, field.Attributes);
             stringTemplate.Add(StgCSharpCommon.FieldDeclaration.Params.Modifiers, field.Modifiers);
             stringTemplate.Add(StgCSharpCommon.FieldDeclaration.Params.Type, field.Type);
-            stringTemplate.Add(StgCSharpCommon.FieldDeclaration.Params.VariableDeclarators, field.VariableDeclarators);
+            stringTemplate.Add(StgCSharpCommon.FieldDeclaration.Params.VariableDeclarator, field.VariableDeclarator);
             return stringTemplate.Render();
         }
 

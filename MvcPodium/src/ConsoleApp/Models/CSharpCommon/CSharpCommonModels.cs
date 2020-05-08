@@ -264,8 +264,7 @@ namespace MvcPodium.ConsoleApp.Models.CSharpCommon
         public string Attributes { get; set; }
         public List<string> Modifiers { get; set; } = new List<string>();
         public string Type { get; set; }
-        public List<VariableDeclarator> VariableDeclarators { get; set; } = new List<VariableDeclarator>();
-
+        public VariableDeclarator VariableDeclarator { get; set; }
     }
 
     public class VariableDeclarator

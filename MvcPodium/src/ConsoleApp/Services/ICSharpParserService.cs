@@ -35,9 +35,9 @@ namespace MvcPodium.ConsoleApp.Services
             BufferedTokenStream tokenStream,
             CSharpParser.Formal_parameter_listContext formalParameterList);
 
-        bool IsUsingDirectiveInContext(
+        HashSet<string> GetUsingDirectivesNotInContext(
             CSharpParser.Compilation_unitContext context,
-            string usingDirective);
+            List<string> usingDirectives);
 
         IToken GetUsingStopIndex(CSharpParser.Compilation_unitContext context);
 
@@ -67,6 +67,28 @@ namespace MvcPodium.ConsoleApp.Services
 
         string GenerateClassInterfaceDeclaration(
             ClassInterfaceDeclaration classInterfaceDeclaration,
+            int tabLevels = 0,
+            string tabString = null);
+
+        string GenerateFieldDeclaration(
+            FieldDeclaration fieldDeclaration,
+            int tabLevels = 0,
+            string tabString = null);
+
+        string GenerateConstructorDeclaration(
+            ConstructorDeclaration constructorDeclaration,
+            int tabLevels = 0,
+            string tabString = null);
+
+        string GenerateFixedParameters(
+            List<FixedParameter> fixedParameters,
+            int tabLevels = 0,
+            string tabString = null,
+            bool isFirstParam = false,
+            bool isSingleLine = false);
+
+        string GenerateSimpleAssignments(
+            List<SimpleAssignment> simpleAssignments,
             int tabLevels = 0,
             string tabString = null);
     }

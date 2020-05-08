@@ -66,6 +66,7 @@ namespace MvcPodium.ConsoleApp.Services
 
         public int CalculateTabLevels(string str, string tabString = null)
         {
+            if (str is null) { return 0; }
             string tab = tabString ?? "    ";
             int tabLevels = 0;
 
@@ -75,6 +76,20 @@ namespace MvcPodium.ConsoleApp.Services
                 tabLevels = match1.Groups[1].Captures.Count;
             }
             return tabLevels;
+        }
+
+        public HashSet<string> GetMissingStrings(IEnumerable<string> set1, IEnumerable<string> set2)
+        {
+            if (set2 is null)
+            {
+                return new HashSet<string>();
+            }
+            var missing = new HashSet<string>(set2);
+            if (set1 != null)
+            {
+                missing.ExceptWith(set1);
+            }
+            return missing;
         }
     }
 }
