@@ -50,7 +50,7 @@ FieldDeclaration(
     field.Attributes,
     field.Modifiers,
     field.Type,
-    field.VariableDeclarators)
+    field.VariableDeclarator)
 >}><\n>
 <endif><if(constructorDeclaration)>
     <

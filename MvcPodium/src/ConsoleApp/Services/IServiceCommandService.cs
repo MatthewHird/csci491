@@ -29,7 +29,9 @@ namespace MvcPodium.ConsoleApp.Services
         string GetClassServiceFileFromInterface(
             ServiceFile interfaceServiceFile,
             string serviceClassName,
-            string serviceNamespace);
+            string serviceNamespace,
+            List<string> appendUsingDirectives,
+            ClassInterfaceBody appendClassBody);
 
         string InjectDataIntoServiceInterface(
             ServiceFile interfaceServiceFile,

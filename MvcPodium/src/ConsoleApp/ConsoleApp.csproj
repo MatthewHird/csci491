@@ -10,6 +10,16 @@
     <StartupObject>MvcPodium.ConsoleApp.Program</StartupObject>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="SettingsTemplates\**" />
+    <EmbeddedResource Remove="SettingsTemplates\**" />
+    <None Remove="SettingsTemplates\**" />
+  </ItemGroup>
+
   <ItemGroup>
     <None Remove="Grammars\CSharpLexer.g4" />
     <None Remove="Grammars\CSharpParser.g4" />
@@ -41,6 +51,18 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="appsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Docs\CommandTemplates\breadcrumb.template.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Docs\CommandTemplates\service.template.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Docs\SettingsTemplates\project_environment.template.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Docs\SettingsTemplates\usersettings.template.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="StringTemplates\BreadcrumbCommand.stg">

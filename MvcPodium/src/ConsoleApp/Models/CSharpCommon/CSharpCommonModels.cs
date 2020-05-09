@@ -80,6 +80,8 @@ namespace MvcPodium.ConsoleApp.Models.CSharpCommon
 
     public class ClassInterfaceBody
     {
+        public List<FieldDeclaration> FieldDeclarations { get; set; } = new List<FieldDeclaration>();
+        public ConstructorDeclaration ConstructorDeclaration { get; set; }
         public List<MethodDeclaration> MethodDeclarations { get; set; } = new List<MethodDeclaration>();
 
         public List<PropertyDeclaration> PropertyDeclarations { get; set; } = new List<PropertyDeclaration>();

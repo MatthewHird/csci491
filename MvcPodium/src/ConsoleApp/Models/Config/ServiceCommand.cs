@@ -17,18 +17,19 @@ namespace MvcPodium.ConsoleApp.Models.Config
         public string ServiceRootName { get; set; }
         public SourceOfTruth? SourceOfTruth { get; set; }
         public string Area { get; set; }
-        public List<string> Subdirectories { get; set; }
+        public string Subdirectory { get; set; }
         public ServiceLifetime? ServiceLifespan { get; set; }
         public List<TypeParameter> TypeParameters { get; set; }
-        public List<Controller> Controllers { get; set; }
+        public List<InjectedService> InjectedServices { get; set; }
+        public List<InjectIntoClass> InjectInto { get; set; }
 
-        public class Controller
-        {
-            public string Name { get; set; }
-            public string Area { get; set; }
-            public List<string> Subdirectories { get; set; }
-            public string ServiceIdentifier { get; set; }
-        }
 
+    }
+    public class InjectIntoClass
+    {
+        public string ClassName { get; set; }
+        public string Area { get; set; }
+        public string Subdirectory { get; set; }
+        public string ServiceIdentifier { get; set; }
     }
 }

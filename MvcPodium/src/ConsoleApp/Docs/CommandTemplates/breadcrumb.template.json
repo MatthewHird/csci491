@@ -1,0 +1,19 @@
+{
+    "BreadcrumbCommands": [
+        {
+            "Area": "Form", // if != null, path will be relative to ~/Areas/<Area>/
+            "TargetDirectory": "Controllers", // null == Controllers/
+            "TargetFile": null, // null == all
+            "BreadcrumbServiceDirectory": null, // null == Services/Breadcrumbs/
+            "IsRecursive": true,
+            "ControllerNamePattern": "_controllerService.GetRootName<$ControllerType$>()",
+            "InjectedServices": [
+                {
+                    "Type": "IMyControllerService",
+                    "ServiceIdentifier": "myControllerService",
+                    "Namespace": "MyProgram.MyServices"
+                }
+            ]
+        }
+    ]
+}

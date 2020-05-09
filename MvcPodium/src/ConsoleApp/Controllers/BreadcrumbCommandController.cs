@@ -1,12 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+
 using MvcPodium.ConsoleApp.Constants.CSharpGrammar;
 using MvcPodium.ConsoleApp.Models.BreadcrumbCommand;
 using MvcPodium.ConsoleApp.Models.Config;
@@ -24,20 +25,11 @@ namespace MvcPodium.ConsoleApp.Controllers
         private readonly IOptions<ProjectEnvironment> _projectEnvironment;
         private readonly IOptions<UserSettings> _userSettings;
         private readonly IIoUtilService _ioUtilService;
-        private readonly ICSharpCommonStgService _cSharpCommonStgService;
-        private readonly IServiceCommandStgService _serviceCommandStgService;
         private readonly IBreadcrumbCommandStgService _breadcrumbCommandStgService;
         private readonly IServiceCommandService _serviceCommandService;
-        private readonly IServiceInterfaceScraperFactory _serviceInterfaceScraperFactory;
-        private readonly IServiceClassScraperFactory _serviceClassScraperFactory;
-        private readonly IServiceInterfaceInjectorFactory _serviceInterfaceInjectorFactory;
-        private readonly IServiceClassInjectorFactory _serviceClassInjectorFactory;
-        private readonly IServiceStartupRegistrationFactory _serviceStartupRegistrationFactory;
-        private readonly IServiceConstructorInjectorFactory _serviceConstructorInjectorFactory;
         private readonly IBreadcrumbControllerScraperFactory _breadcrumbControllerScraperFactory;
         private readonly IBreadcrumbControllerInjectorFactory _breadcrumbControllerInjectorFactory;
         private readonly IBreadcrumbClassInjectorFactory _breadcrumbClassInjectorFactory;
-        private readonly IBreadcrumbInterfaceInjectorFactory _breadcrumbInterfaceInjectorFactory;
         
         public BreadcrumbCommandController(
             ILogger<MvcPodiumController> logger,
@@ -45,40 +37,22 @@ namespace MvcPodium.ConsoleApp.Controllers
             IOptions<ProjectEnvironment> projectEnvironment,
             IOptions<UserSettings> userSettings,
             IIoUtilService ioUtilService,
-            ICSharpCommonStgService cSharpCommonStgService,
-            IServiceCommandStgService serviceCommandStgService,
             IBreadcrumbCommandStgService breadcrumbCommandStgService,
             IServiceCommandService serviceCommandService,
-            IServiceInterfaceScraperFactory serviceInterfaceScraperFactory,
-            IServiceClassScraperFactory serviceClassScraperFactory,
-            IServiceInterfaceInjectorFactory serviceInterfaceInjectorFactory,
-            IServiceClassInjectorFactory serviceClassInjectorFactory,
-            IServiceStartupRegistrationFactory serviceStartupRegistrationFactory,
-            IServiceConstructorInjectorFactory serviceControllerInjectorFactory,
             IBreadcrumbControllerScraperFactory breadcrumbControllerScraperFactory,
             IBreadcrumbControllerInjectorFactory breadcrumbControllerInjectorFactory,
-            IBreadcrumbClassInjectorFactory breadcrumbClassInjectorFactory,
-            IBreadcrumbInterfaceInjectorFactory breadcrumbInterfaceInjectorFactory)
+            IBreadcrumbClassInjectorFactory breadcrumbClassInjectorFactory)
         {
             _logger = logger;
             _commandLineArgs = commandLineArgs;
             _projectEnvironment = projectEnvironment;
             _userSettings = userSettings;
             _ioUtilService = ioUtilService;
-            _cSharpCommonStgService = cSharpCommonStgService;
-            _serviceCommandStgService = serviceCommandStgService;
             _breadcrumbCommandStgService = breadcrumbCommandStgService;
             _serviceCommandService = serviceCommandService;
-            _serviceInterfaceScraperFactory = serviceInterfaceScraperFactory;
-            _serviceClassScraperFactory = serviceClassScraperFactory;
-            _serviceInterfaceInjectorFactory = serviceInterfaceInjectorFactory;
-            _serviceClassInjectorFactory = serviceClassInjectorFactory;
-            _serviceStartupRegistrationFactory = serviceStartupRegistrationFactory;
-            _serviceConstructorInjectorFactory = serviceControllerInjectorFactory;
             _breadcrumbControllerScraperFactory = breadcrumbControllerScraperFactory;
             _breadcrumbControllerInjectorFactory = breadcrumbControllerInjectorFactory;
             _breadcrumbClassInjectorFactory = breadcrumbClassInjectorFactory;
-            _breadcrumbInterfaceInjectorFactory = breadcrumbInterfaceInjectorFactory;
         }
 
         public Task Execute(BreadcrumbCommand breadcrumbCommand)
@@ -100,7 +74,7 @@ namespace MvcPodium.ConsoleApp.Controllers
             var defaultAreaBreadcrumbServiceName = defaultAreaBreadcrumbServiceRootName + "Service";
 
             var commandRootDirectory = Path.Combine(
-                _commandLineArgs.Value.ProjectRoot, 
+                _projectEnvironment.Value.RootDirectory, 
                 (breadcrumbCommand.Area is null|| breadcrumbCommand.Area.TrimEnd(@"/\ ".ToCharArray()) == string.Empty
                     ? string.Empty : Path.Combine("Areas", breadcrumbCommand.Area)));
 
@@ -185,7 +159,21 @@ namespace MvcPodium.ConsoleApp.Controllers
 
             foreach (var injectedService in breadcrumbCommand.InjectedServices)
             {
-                usingDirectives.Add(injectedService.Namespace);
+                var injectedServiceIdentifier = injectedService.ServiceIdentifier
+                        ?? Regex.Replace(
+                            Regex.Replace(
+                                injectedService.Type,
+                                @"^I?([A-Z])",
+                                "$1"),
+                            @"^[A-Z]",
+                            m => m.ToString().ToLower());
+
+                if (!Regex.Match(breadcrumbRootNamespace, "^" + Regex.Escape(injectedService.Namespace)).Success)
+                {
+                    usingDirectives.Add(injectedService.Namespace);
+
+                }
+
                 fieldDeclarations.Add(
                     new FieldDeclaration()
                     {
@@ -197,7 +185,7 @@ namespace MvcPodium.ConsoleApp.Controllers
                         Type = injectedService.Type,
                         VariableDeclarator = new VariableDeclarator()
                         {
-                            Identifier = "_" + injectedService.ServiceIdentifier
+                            Identifier = "_" + injectedServiceIdentifier
                         }
                         
                     });
@@ -205,15 +193,15 @@ namespace MvcPodium.ConsoleApp.Controllers
                     new FixedParameter()
                     {
                         Type = injectedService.Type,
-                        Identifier = injectedService.ServiceIdentifier
+                        Identifier = injectedServiceIdentifier
                     });
                 statements.Add(
                     new Statement()
                     {
                         SimpleAssignment = new SimpleAssignment()
                         {
-                            LeftHandSide = "_" + injectedService.ServiceIdentifier,
-                            RightHandSide = injectedService.ServiceIdentifier
+                            LeftHandSide = "_" + injectedServiceIdentifier,
+                            RightHandSide = injectedServiceIdentifier
                         }
                     });
             }
@@ -376,8 +364,8 @@ namespace MvcPodium.ConsoleApp.Controllers
 
         private void RegisterServicesInStartup(List<StartupRegistrationInfo> startupRegInfoList)
         {
-            var startupFilepath = Path.Combine(_commandLineArgs.Value.ProjectRoot, "Startup.cs");
-            var testStartupFilepath = Path.Combine(_commandLineArgs.Value.ProjectRoot, "XStartup.cs");
+            var startupFilepath = Path.Combine(_projectEnvironment.Value.RootDirectory, "Startup.cs");
+            var testStartupFilepath = Path.Combine(_projectEnvironment.Value.RootDirectory, "XStartup.cs");
             //Check if Startup.cs exists
             if (!File.Exists(startupFilepath))
             {

@@ -4,7 +4,13 @@ ClassDeclaration(attributes, modifiers, identifier, typeParameters, base, body) 
 <if(attributes)><attributes><\n><endif><\\>
 <modifiers:{modifier|<modifier> }>class <identifier><\\>
 <TypeParamList(typeParameters)><ClassBase(base.ClassType, base.InterfaceTypeList)><\\>
-<TypeParamConstraints(typeParameters)><\n><ClassBody(body.PropertyDeclarations, body.MethodDeclarations)>
+<TypeParamConstraints(typeParameters)><\n><
+ClassBody(
+    body.FieldDeclarations,
+    body.ConstructorDeclaration, 
+    body.PropertyDeclarations, 
+    body.MethodDeclarations)
+>
 >>
 
 
@@ -13,8 +19,26 @@ ClassBase(classType, interfaceTypeList) ::= <<
 >>
 
 
-ClassBody(propertyDeclarations, methodDeclarations) ::= <<
-{<propertyDeclarations:{property|<\n>    <
+ClassBody(fieldDeclarations, constructorDeclaration, propertyDeclarations, methodDeclarations) ::= <<
+{<if(fieldDeclarations)><fieldDeclarations:{field|
+    <
+FieldDeclaration(
+    field.Attributes,
+    field.Modifiers,
+    field.Type,
+    field.VariableDeclarator)
+>}><\n>
+<endif><if(constructorDeclaration)>
+    <
+ConstructorDeclaration(
+    constructorDeclaration.Attributes,
+    constructorDeclaration.Modifiers,
+    constructorDeclaration.Identifier,
+    constructorDeclaration.FormalParameterList,
+    constructorDeclaration.ConstructorInitializer,
+    constructorDeclaration.Body)
+><\n>
+<endif><propertyDeclarations:{property|<\n>    <
 ClassPropertyDeclaration(
     property.Attributes,
     property.Modifiers,
@@ -153,9 +177,9 @@ FormalParameterList(fixedParameters, parameterArray) ::= <<
 >}; separator=", "><\\>
 <if(fixedParameters && parameterArray)>, <endif><\\>
 <if(parameterArray)><ParameterArray(
-    parameterArray.attributes,
-    parameterArray.type,
-    parameterArray.identifier)
+    parameterArray.Attributes,
+    parameterArray.Type,
+    parameterArray.Identifier)
 ><endif>
 >>
 
@@ -176,7 +200,7 @@ ParameterArray(attributes, type, identifier) ::= <<
 FieldDeclaration(attributes, modifiers, type, variableDeclarator) ::= <<
 <if(attributes)><attributes><\n><endif><\\>
 <modifiers:{modifier|<modifier> }><type> <\\>
-<VariableDeclarator(variableDeclarator.identifier, variableDeclarator.variableInitializer)>;
+<VariableDeclarator(variableDeclarator.Identifier, variableDeclarator.VariableInitializer)>;
 >>
 
 
@@ -193,7 +217,7 @@ SimpleAssignmentStatement(leftHandSide, rightHandSide) ::= <<
 ConstructorDeclaration(attributes, modifiers, identifier, formalParameterList, constructorInitializer, body) ::= <<
 <if(attributes)><attributes><\n><endif><\\>
 <modifiers:{modifier|<modifier> }><\\>
-<identifier>(<FormalParameterList(formalParameterList.fixedParameters, formalParameterList.parameterArray)>)<\\>
+<identifier>(<FormalParameterList(formalParameterList.FixedParameters, formalParameterList.ParameterArray)>)<\\>
 <if(constructorInitializer)> <ConstructorInitializer(constructorInitializer.IsBase, constructorInitializer.Arguments)><endif><\\>
 <\n><ConstructorBody(body.Statements)>
 >>

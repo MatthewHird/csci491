@@ -12,7 +12,6 @@ using MvcPodium.ConsoleApp.Controllers;
 using MvcPodium.ConsoleApp.Models.Config;
 using MvcPodium.ConsoleApp.Services;
 using MvcPodium.ConsoleApp.Visitors.Factories;
-using MvcPodium.ConsoleApp.Controllers;
 
 namespace MvcPodium.ConsoleApp
 {
@@ -35,7 +34,7 @@ namespace MvcPodium.ConsoleApp
 
             app.HelpOption();
 
-            var projectRoot = app.Option("-p|--project_root=<optionvalue>",
+            var projectEnvironment = app.Option("-p|--project_environment=<optionvalue>",
                     "Some option value",
                     CommandOptionType.SingleValue)
                 .IsRequired()
@@ -57,7 +56,7 @@ namespace MvcPodium.ConsoleApp
 
             app.OnExecute(() =>
             {
-                var pr = projectRoot?.Value() ?? "";
+                var pe = projectEnvironment?.Value() ?? "";
                 var cfd = commandFileDirectory?.Value() ?? "";
 
                 if (commandFiles.Values.Count == 0)
@@ -106,7 +105,7 @@ namespace MvcPodium.ConsoleApp
                 var inMemConfig = new Dictionary<string, string>() 
                 { 
                     { "AppSettings:AssemblyDirectory", assemblyDir },
-                    { "CommandLineArgs:ProjectRoot", pr },
+                    { "CommandLineArgs:ProjectEnvironment", pe },
                     { "CommandLineArgs:CommandFileDirectory", cfd}
                 };
                 for (int i = 0; i < commandFilesFull.Count; ++i)
@@ -114,7 +113,7 @@ namespace MvcPodium.ConsoleApp
                     inMemConfig[$"CommandLineArgs:CommandFiles:{i}"] = commandFilesFull[i];
                 }
 
-                var config = CreateConfiguration(inMemConfig, userSettingsPath?.Value());
+                var config = CreateConfiguration(inMemConfig, pe, userSettingsPath?.Value());
                 var serviceProvider = CreateServiceProvider(config);
 
                 var program = serviceProvider.GetRequiredService<MvcPodiumController>();
@@ -141,7 +140,8 @@ namespace MvcPodium.ConsoleApp
         }
 
         public static IConfigurationRoot CreateConfiguration(
-            Dictionary<string, string> inMemConfig, 
+            Dictionary<string, string> inMemConfig,
+            string projectEnvironment,
             string userSettingsPath = null)
         {
             IConfigurationBuilder configBuilder = new ConfigurationBuilder();
@@ -155,6 +155,7 @@ namespace MvcPodium.ConsoleApp
             {
                 configBuilder.AddJsonFile(userSettingsPath);
             }
+            configBuilder.AddJsonFile(projectEnvironment);
 
             return configBuilder.Build();
         }
@@ -205,7 +206,6 @@ namespace MvcPodium.ConsoleApp
             serviceCollection.AddSingleton<IBreadcrumbControllerScraperFactory, BreadcrumbControllerScraperFactory>();
             serviceCollection.AddSingleton<IBreadcrumbControllerInjectorFactory, BreadcrumbControllerInjectorFactory>();
             serviceCollection.AddSingleton<IBreadcrumbClassInjectorFactory, BreadcrumbClassInjectorFactory>();
-            serviceCollection.AddSingleton<IBreadcrumbInterfaceInjectorFactory, BreadcrumbInterfaceInjectorFactory>();
             
             return serviceCollection.BuildServiceProvider();
         }

@@ -23,6 +23,8 @@ namespace MvcPodium.ConsoleApp.Visitors
 
         private readonly Stack<string> _currentNamespace;
 
+        private readonly HashSet<string> _usingSet;
+
         public bool IsModified { get; private set; }
 
         public TokenStreamRewriter Rewriter { get; }
@@ -49,26 +51,37 @@ namespace MvcPodium.ConsoleApp.Visitors
             _hasServiceNamespace = false;
             _hasServiceInterface = false;
             IsModified = false;
-    }
+
+            _usingSet = _serviceFile.UsingDirectives.ToHashSet();
+        }
 
         public override object VisitCompilation_unit([NotNull] CSharpParser.Compilation_unitContext context)
         {
             _hasServiceNamespace = false;
             _hasServiceInterface = false;
 
-            var usingStopIndex = _cSharpParserService.GetUsingStopIndex(context);
-
-            var usingDirectivesStr = _cSharpParserService.GenerateUsingDirectives(
-                _serviceFile.UsingDirectives,
-                usingStopIndex.Equals(context.Start));
-
-            if (usingDirectivesStr != null && usingDirectivesStr != string.Empty)
+            var usingDirs = context?.using_directive();
+            if (usingDirs != null)
             {
-                IsModified = true;
-                Rewriter.InsertAfter(usingStopIndex, usingDirectivesStr);
+                foreach (var usingDir in usingDirs)
+                {
+                    _usingSet.Remove(usingDir.using_directive_inner().GetText());
+                }
             }
 
             VisitChildren(context);
+
+            if (_usingSet.Count > 0)
+            {
+                var usingStopIndex = _cSharpParserService.GetUsingStopIndex(context);
+
+                var usingDirectivesStr = _cSharpParserService.GenerateUsingDirectives(
+                    _usingSet.ToList(),
+                    usingStopIndex.Equals(context.Start));
+
+                IsModified = true;
+                Rewriter.InsertAfter(usingStopIndex, usingDirectivesStr);
+            }
 
             if (!_hasServiceNamespace)
             {

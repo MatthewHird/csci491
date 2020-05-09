@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+
 using Antlr4.Runtime;
 using Antlr4.Runtime.Misc;
+
 using MvcPodium.ConsoleApp.Constants.CSharpGrammar;
 using MvcPodium.ConsoleApp.Models.BreadcrumbCommand;
 using MvcPodium.ConsoleApp.Models.CSharpCommon;
@@ -108,8 +110,6 @@ namespace MvcPodium.ConsoleApp.Visitors
 
         public override object VisitCompilation_unit([NotNull] CSharpParser.Compilation_unitContext context)
         {
-            _hasBreadcrumbConstructor = true;
-
             var usingDirs = context?.using_directive();
             if (usingDirs != null)
             {
@@ -123,6 +123,8 @@ namespace MvcPodium.ConsoleApp.Visitors
                 }
             }
 
+            VisitChildren(context);
+
             if (_usingSet.Count > 0)
             {
                 var usingStopIndex = _cSharpParserService.GetUsingStopIndex(context);
@@ -135,7 +137,6 @@ namespace MvcPodium.ConsoleApp.Visitors
                 Rewriter.InsertAfter(usingStopIndex, usingDirectivesStr);
             }
 
-            VisitChildren(context);
 
             if (!_hasBreadcrumbNamespace)
             {
@@ -153,9 +154,11 @@ namespace MvcPodium.ConsoleApp.Visitors
         public override object VisitNamespace_declaration([NotNull] CSharpParser.Namespace_declarationContext context)
         {
             _currentNamespace.Push(context.qualified_identifier().GetText());
+
             var isBreadcrumbNamespace = false;
             if (GetCurrentNamespace() == _breadcrumbNamespace)
             {
+                _usingSet.Remove(GetCurrentNamespace());
                 _hasBreadcrumbNamespace = true;
                 isBreadcrumbNamespace = true;
             }
@@ -287,14 +290,6 @@ namespace MvcPodium.ConsoleApp.Visitors
                         _breadcrumbDeclaration.Body.ConstructorDeclaration,
                         tabLevels,
                         _tabString));
-
-                    var breadcrumbClassString = _breadcrumbCommandParserService.GenerateBreadcrumbClassInterfaceDeclaration(
-                        _breadcrumbDeclaration,
-                        tabLevels,
-                        _tabString);
-
-                    IsModified = true;
-                    Rewriter.InsertAfter(constructorStopIndex ?? -1, breadcrumbClassString);
                 }
 
                 if (_methodDictionary.Keys.Count > 0)
@@ -307,7 +302,7 @@ namespace MvcPodium.ConsoleApp.Visitors
 
                     methodStringBuilder = methodStopIndex == fieldStopIndex
                         ? fieldStringBuilder : (methodStopIndex == constructorStopIndex
-                        ? constructorStringBuilder : new StringBuilder());
+                            ? constructorStringBuilder : new StringBuilder());
 
                     methodStringBuilder.Append(_breadcrumbCommandParserService.GenerateBreadcrumbMethodDeclarations(
                         _breadcrumbDeclaration.Body.MethodDeclarations,

@@ -1,0 +1,37 @@
+{
+    "ServicesCommands": [
+        {
+            // Created service and interface will be called MyServiceNameService and IMyServiceNameService
+            "ServiceRootName": "MyServiceName",
+            "SourceOfTruth": "Class", // Class (default), Interface, Match
+            "Area": null, // null means the top level will be checked
+            "Subdirectory": null, // The subfolder path relative to ~/Areas/<AreaName>/Services/
+            "ServiceLifespan": "Scoped", // Scoped (default), Singleton, Tansient
+            "TypeParameters": [
+                {
+                    "TypeParam": "T",
+                    "VarianceAnnotation": null, // in, out
+                    "Constraints": [
+                        "IMyType"
+                    ]
+                }
+
+            ],
+            "InjectedServices": [
+                {
+                    "Type": "MyInjectedService",
+                    "ServiceIdentifier": "myInjectedService",
+                    "Namespace": "Full.Namespace"
+                }
+            ],
+            "InjectInto": [
+                {
+                    "ClassName": "MyController", // The controller's path relative to ~/Areas/<AreaName>/Controllers/
+                    "Area": null, // null means the top level will be checked
+                    "Subdirectory": null, // The subfolder path relative to ~/Areas/<AreaName>/
+                    "ServiceIdentifier": null // null means the defaut name will be used "myServiceNameService" and "_myServiceNameService"
+                }
+            ]
+        }
+    ]
+}

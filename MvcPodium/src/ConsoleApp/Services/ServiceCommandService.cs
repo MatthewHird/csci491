@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using MvcPodium.ConsoleApp.Models.CSharpCommon;
 using MvcPodium.ConsoleApp.Models.ServiceCommand;
@@ -87,14 +88,28 @@ namespace MvcPodium.ConsoleApp.Services
         public string GetClassServiceFileFromInterface(
             ServiceFile interfaceServiceFile,
             string serviceClassName,
-            string serviceNamespace)
+            string serviceNamespace,
+            List<string> appendUsingDirectives,
+            ClassInterfaceBody appendClassBody)
         {
+            var usingSet = interfaceServiceFile.UsingDirectives.ToHashSet();
+            usingSet.UnionWith(appendUsingDirectives);
+            usingSet.Remove(serviceNamespace);
+
             var classDeclaration = _serviceCommandParserService.GetClassFromInterface(
                 interfaceServiceFile.ServiceDeclaration,
                 serviceClassName);
 
+            var fieldDeclarations = appendClassBody?.FieldDeclarations;
+
+            classDeclaration.Body.ConstructorDeclaration = appendClassBody?.ConstructorDeclaration;
+            if (fieldDeclarations != null)
+            {
+                classDeclaration.Body.FieldDeclarations = fieldDeclarations;
+            }
+
             return _serviceCommandStgService.RenderServiceFile(
-                usingDirectives: interfaceServiceFile.UsingDirectives,
+                usingDirectives: usingSet.ToList(),
                 serviceNamespace: serviceNamespace,
                 service: classDeclaration);
         }
