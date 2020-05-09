@@ -469,12 +469,12 @@ venv.bak/
 
 *.idea*
 
-simple_example_program/C#/ExampleProgram/bin
-simple_example_program/C#/ExampleProgram/obj
-simple_example_program/C#/ExampleProgram/packages
 
 *.vs/
 bin/*
 obj/*
 
-MvcPodiumOLD/
+MvcPodium/Resources/
+MvcPodium/src/ConsoleApp/Properties
+MvcPodium/src/ConsoleApp/appsettings.Debug.json
+MvcPodium/.editorconfig
