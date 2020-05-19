@@ -1,0 +1,150 @@
+{
+  "ServiceCommands": [
+    // START MissingClassService
+    {
+      "ServiceName": "MissingClassService",
+      "IsClassOnly": false,
+      "ServiceLifespan": "Transient",
+      "InjectedServices": [
+        {
+          "Type": "IEmailService",
+          "ServiceIdentifier": "emailService",
+          "Namespace": "TestProject.Services"
+        }
+      ],
+      "InjectInto": [
+        {
+          "ClassName": "BlueFishController",
+          "Subdirectory": "Controllers/Fish"
+        }
+      ]
+    }, 
+    //END MissingClassService
+    // START UnregisteredService
+    {
+      "ServiceName": "UnregisteredService",
+      "IsClassOnly": false,
+      "Area": null,
+      "Subdirectory": null,
+      "ServiceLifespan": "Singleton",
+      "InjectInto": [
+        {
+          "ClassName": "Thing1Controller",
+          "Subdirectory": "Controllers/Things",
+          "ServiceIdentifier": "lookAtMyIdentifier"
+        },
+        {
+          "ClassName": "Thing2Controller",
+          "Subdirectory": "Controllers/Things",
+          "ServiceIdentifier": "lookAnotherIdentifier"
+        }
+      ]
+    }, 
+    //END UnregisteredService
+    // START MismatchService
+    {
+      "ServiceName": "MismatchService",
+      "IsClassOnly": false,
+      "SourceOfTruth": "Match",
+      "Area": "MyArea",
+      "ServiceLifespan": "Scoped",
+      "InjectedServices": [
+        {
+          "Type": "IEmailService",
+          "Namespace": "TestProject.Services"
+        },
+        {
+          "Type": "IImageService",
+          "Namespace": "TestProject.Services"
+        }
+      ]
+    }, 
+    //END MismatchService
+    // START TypeParamService
+    {
+      "ServiceName": "TypeParamService",
+      "IsClassOnly": false,
+      "SourceOfTruth": "Match",
+      "Area": "MyArea",
+      "Subdirectory": "Services",
+      "ServiceLifespan": "Scoped",
+      "TypeParameters": [
+        {
+          "TypeParam": "T",
+          "Constraints": [
+            "new()"
+          ]
+        }
+
+      ],
+      "InjectInto": [
+        {
+          "ClassName": "ImageService",
+          "Subdirectory": "Services"
+        }
+      ]
+    }, 
+    //END TypeParamService
+    // START MissingClassDeclarationService
+    {
+      "ServiceName": "MissingClassDeclarationService",
+      "IsClassOnly": false,
+      "SourceOfTruth": "Class",
+      "Area": "MyArea",
+      "Subdirectory": "Services/Subfolder",
+      "ServiceLifespan": "Scoped",
+      "InjectedServices": [
+        {
+          "Type": "IMismatchService",
+          "Namespace": "TestProject.Areas.MyArea.Services"
+        }
+      ]
+    }, 
+    //END MissingClassDeclarationService
+    // START EmailService
+    {
+      "ServiceName": "EmailService",
+      "IsClassOnly": false,
+      "SourceOfTruth": "Class",
+      "Area": null,
+      "Subdirectory": null,
+      "ServiceLifespan": "Scoped",
+      "TypeParameters": [
+        {
+          "TypeParam": "T",
+          "Constraints": [
+            "IMyType"
+          ]
+        }
+
+      ],
+      "InjectedServices": [
+        {
+          "Type": "IImageService",
+          "Namespace": "TestProject.Services"
+        }
+      ]
+    }, 
+    //END EmailService
+    // START ClassOnlyService
+    {
+      "ServiceName": "ClassOnlyService",
+      "IsClassOnly": true,
+      "ServiceLifespan": "Transient",
+      "InjectedServices": [
+        {
+          "Type": "MyDbContext",
+          "ServiceIdentifier": "context",
+          "Namespace": "TestProject.Data"
+        }
+      ],
+      "InjectInto": [
+        {
+          "ClassName": "EmailService",
+          "Subdirectory": "Services"
+        }
+      ]
+    }
+    //END ClassOnlyService
+  ]
+}

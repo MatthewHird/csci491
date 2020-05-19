@@ -1,0 +1,82 @@
+{
+  "BreadcrumbCommands" : [
+    // START top level Controllers recursive
+    {
+      "Area": null,
+      "TargetDirectory": "Controllers",
+      "BreadcrumbServiceDirectory": null,
+      "IsRecursive": true,
+      "InjectedServices": [
+        {
+          "Type": "IControllerService",
+          "ServiceIdentifier": "controllerService",
+          "Namespace": "MyProgram.Services"
+        },
+        {
+          "Type": "MyDbContext",
+          "ServiceIdentifier": "context",
+          "Namespace": "MyProgram.Data"
+        },
+        {
+          "Type": "IEmailService",
+          "Namespace": "MyProgram.Services"
+        },
+        {
+          "Type": "IImageService",
+          "ServiceIdentifier": "imageService1",
+          "Namespace": "MyProgram.Services"
+        },
+        {
+          "Type": "IImageService",
+          "ServiceIdentifier": "imageService2",
+          "Namespace": "MyProgram.Services"
+        }
+      ]
+    },
+    // END top level Controllers recursive
+    // START MyArea Controllers NOT recursive
+    {
+      "Area": "MyArea",
+      "TargetDirectory": "Controllers",
+      "BreadcrumbServiceDirectory": null,
+      "IsRecursive": false,
+      "ControllerNamePattern": 
+        "_controllerService.GetRootName<$ControllerType$>()",
+      "InjectedServices": [
+        {
+          "Type": "IControllerService",
+          "ServiceIdentifier": "controllerService",
+          "Namespace": "MyProgram.Services"
+        },
+        {
+          "Type": "MyDbContext",
+          "ServiceIdentifier": "context",
+          "Namespace": "MyProgram.Data"
+        }
+      ]
+    },
+    // END MyArea Controllers NOT recursive
+    // START MyArea Target MyModel4Controller
+    {
+      "Area": "MyArea",
+      "TargetDirectory": "Controllers/Level1/Level2",
+      "TargetFile": "MyModel4Controller.cs",
+      "BreadcrumbServiceDirectory": "LonelyDirectory",
+      "ControllerNamePattern": 
+        "_controllerService.GetRootName<$ControllerType$>()",
+      "InjectedServices": [
+        {
+          "Type": "IControllerService",
+          "ServiceIdentifier": "controllerService",
+          "Namespace": "MyProgram.Services"
+        },
+        {
+          "Type": "MyDbContext",
+          "ServiceIdentifier": "context",
+          "Namespace": "MyProgram.Data"
+        }
+      ]
+    }
+    // END MyArea Target MyModel4Controller
+  ]
+}
