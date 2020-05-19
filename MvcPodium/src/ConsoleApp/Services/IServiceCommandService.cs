@@ -49,7 +49,8 @@ namespace MvcPodium.ConsoleApp.Services
             CSharpParserWrapper startupParser,
             string rootNamespace,
             string serviceNamespace,
-            string serviceName,
+            string serviceClassType,
+            string serviceBaseType,
             bool hasTypeParameters,
             ServiceLifetime serviceLifespan,
             string tabString = null);
@@ -60,8 +61,8 @@ namespace MvcPodium.ConsoleApp.Services
             List<StartupRegistrationInfo> startupRegInfoList,
             string tabString = null);
 
-        string InjectServiceIntoController(
-            CSharpParserWrapper controllerInjectorParser,
+        string InjectServiceIntoConstructor(
+            CSharpParserWrapper constructorInjectorParser,
             string constructorClassName,
             string constructorClassNamespace,
             string serviceIdentifier,

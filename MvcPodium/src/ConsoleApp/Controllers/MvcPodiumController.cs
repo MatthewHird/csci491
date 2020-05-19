@@ -1,23 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using MvcPodium.ConsoleApp.Visitors;
-
-using Antlr4.Runtime;
-using Antlr4.Runtime.Tree;
-
-using Antlr4.StringTemplate;
-using Microsoft.Extensions.Hosting;
-using System.Threading;
-using Microsoft.Extensions.Logging;
-using MvcPodium.ConsoleApp.Models.Config;
-using Microsoft.Extensions.Options;
+﻿using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+using MvcPodium.ConsoleApp.Models.Config;
 
 namespace MvcPodium.ConsoleApp.Controllers
 {
@@ -55,25 +43,40 @@ namespace MvcPodium.ConsoleApp.Controllers
             };
             options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
 
+            _logger.LogInformation(
+                $"Reading in command files: {_commandLineArgs.Value.CommandFiles.Count} files specified...");
             foreach (string commandFile in _commandLineArgs.Value.CommandFiles)
             {
+                _logger.LogInformation($"Reading file {commandFile}...");
                 var commandSet = JsonSerializer.Deserialize<CommandSet>(File.ReadAllText(commandFile), options);
 
                 if (commandSet?.ServiceCommands != null)
                 {
-                    foreach(var serviceCommand in commandSet.ServiceCommands)
+                    _logger.LogInformation($"{commandSet.ServiceCommands.Count} service commands found...");
+                    int i = 0;
+                    foreach (var serviceCommand in commandSet.ServiceCommands)
                     {
+                        ++i;
+                        _logger.LogInformation(
+                            $"Executing service command {i} of {commandSet.ServiceCommands.Count}...");
                         _serviceCommandController.Execute(serviceCommand);
                     }
                 }
+
                 if (commandSet?.BreadcrumbCommands != null)
                 {
+                    _logger.LogInformation($"{commandSet.BreadcrumbCommands.Count} breadcrumb commands found...");
+                    int i = 0;
                     foreach (var breadcrumbCommand in commandSet.BreadcrumbCommands)
                     {
+                        ++i;
+                        _logger.LogInformation(
+                            $"Executing breadcrumb command {i} of {commandSet.BreadcrumbCommands.Count}...");
                         _breadcrumbCommandController.Execute(breadcrumbCommand);
                     }
                 }
             }
+            _logger.LogInformation("All commands have been completed. Exiting program...");
 
             return 0;
         }

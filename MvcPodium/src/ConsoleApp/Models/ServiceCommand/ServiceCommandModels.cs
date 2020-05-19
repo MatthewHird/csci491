@@ -17,7 +17,8 @@ namespace MvcPodium.ConsoleApp.Models.ServiceCommand
     public class StartupRegistrationInfo
     {
         public string ServiceNamespace { get; set; }
-        public string ServiceName { get; set; }
+        public string ServiceClassType { get; set; }
+        public string ServiceBaseType { get; set; }
         public bool HasTypeParameters { get; set; }
         public ServiceLifetime ServiceLifespan { get; set; }
     }

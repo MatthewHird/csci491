@@ -21,7 +21,6 @@ namespace MvcPodium.ConsoleApp.Controllers
     public class BreadcrumbCommandController
     {
         private readonly ILogger<MvcPodiumController> _logger;
-        private readonly IOptions<CommandLineArgs> _commandLineArgs;
         private readonly IOptions<ProjectEnvironment> _projectEnvironment;
         private readonly IOptions<UserSettings> _userSettings;
         private readonly IIoUtilService _ioUtilService;
@@ -30,10 +29,11 @@ namespace MvcPodium.ConsoleApp.Controllers
         private readonly IBreadcrumbControllerScraperFactory _breadcrumbControllerScraperFactory;
         private readonly IBreadcrumbControllerInjectorFactory _breadcrumbControllerInjectorFactory;
         private readonly IBreadcrumbClassInjectorFactory _breadcrumbClassInjectorFactory;
-        
+
+        private readonly Dictionary<string, string> _writtenTo = new Dictionary<string, string>();
+
         public BreadcrumbCommandController(
             ILogger<MvcPodiumController> logger,
-            IOptions<CommandLineArgs> commandLineArgs,
             IOptions<ProjectEnvironment> projectEnvironment,
             IOptions<UserSettings> userSettings,
             IIoUtilService ioUtilService,
@@ -44,7 +44,6 @@ namespace MvcPodium.ConsoleApp.Controllers
             IBreadcrumbClassInjectorFactory breadcrumbClassInjectorFactory)
         {
             _logger = logger;
-            _commandLineArgs = commandLineArgs;
             _projectEnvironment = projectEnvironment;
             _userSettings = userSettings;
             _ioUtilService = ioUtilService;
@@ -63,7 +62,9 @@ namespace MvcPodium.ConsoleApp.Controllers
 
             var controllerRootNamespace = areaRootNamespace + ".Controllers";
             
-            var breadcrumbRootNamespace = areaRootNamespace + ".Services.Breadcrumbs";
+            var breadcrumbRootNamespace = areaRootNamespace + "." +
+                (breadcrumbCommand?.BreadcrumbServiceDirectory?.TrimEnd(@"/\ ".ToCharArray()) ?? "Services.Breadcrumbs"
+                ).Replace("/", ".").Replace(@"\", ".");
 
             var defaultAreaBreadcrumbServiceRootName = _projectEnvironment.Value.RootNamespace +
                 (breadcrumbCommand.Area is null  || breadcrumbCommand.Area.TrimEnd(@"/\ ".ToCharArray()) == string.Empty
@@ -82,7 +83,7 @@ namespace MvcPodium.ConsoleApp.Controllers
                 commandRootDirectory, breadcrumbCommand.TargetDirectory ?? "Controllers");
 
             var breadcrumbOutputDirectory = Path.Combine(
-                commandRootDirectory, breadcrumbCommand.BreadcrumbServiceDirectory ?? "Services/Breadcrumbs");
+                commandRootDirectory, breadcrumbCommand?.BreadcrumbServiceDirectory ?? "Services/Breadcrumbs");
 
             Directory.CreateDirectory(breadcrumbOutputDirectory);
 
@@ -104,7 +105,9 @@ namespace MvcPodium.ConsoleApp.Controllers
                     // throw
                     return Task.CompletedTask;
                 }
-                filenames.Add(breadcrumbCommand.TargetFile);
+                filenames.Add(targetFile);
+                _logger.LogDebug("Service interface file was already up to date.");
+
             }
             else
             {
@@ -115,7 +118,7 @@ namespace MvcPodium.ConsoleApp.Controllers
 
             foreach (var filename in filenames)
             {
-                var controllerParser = new CSharpParserWrapper(filename);
+                var controllerParser = new CSharpParserWrapper(GetPathFromWrittenTo(filename));
                 var tree = controllerParser.GetParseTree();
 
                 var visitor = _breadcrumbControllerScraperFactory.Create(
@@ -215,21 +218,22 @@ namespace MvcPodium.ConsoleApp.Controllers
 
                 var serviceNamePrefix = namespaceSuffix.Replace(".", "");
 
-                var serviceRootName = serviceNamePrefix == string.Empty
+                var serviceClassName = serviceNamePrefix == string.Empty
                     ? defaultAreaBreadcrumbServiceRootName
-                    : serviceNamePrefix + "Breadcrumb";
-
-                var serviceClassName = serviceRootName + "Service";
+                    : serviceNamePrefix + "BreadcrumbService";
 
                 var serviceInterfaceName = $"I{serviceClassName}";
 
-                var serviceClassFilename = $"{serviceClassName}.cs";
-                var serviceInterfaceFilename = $"{serviceInterfaceName}.cs";
+                var serviceClassFilename = Path.Combine(breadcrumbOutputDirectory, $"{serviceClassName}.cs");
+                var serviceInterfaceFilename = Path.Combine(breadcrumbOutputDirectory, $"{serviceInterfaceName}.cs");
+                var outServiceClassFilename = Path.Combine(breadcrumbOutputDirectory, $"X{serviceClassName}.cs");
+                var outServiceInterfaceFilename = Path.Combine(breadcrumbOutputDirectory, $"X{serviceInterfaceName}.cs");
 
                 startupRegInfoList.Add(new StartupRegistrationInfo()
                 {
                     ServiceNamespace = breadcrumbRootNamespace,
-                    ServiceName = serviceRootName,
+                    ServiceClassType = serviceClassName,
+                    ServiceBaseType = serviceInterfaceName,
                     HasTypeParameters = false,
                     ServiceLifespan = ServiceLifetime.Scoped
                 });
@@ -264,8 +268,9 @@ namespace MvcPodium.ConsoleApp.Controllers
 
                 foreach (var controllerClass in controllerNamespace.ClassDict.Values)
                 {
-                    var controllerNamePattern = breadcrumbCommand.ControllerNamePattern.Replace(
-                        "$ControllerType$", controllerClass.Controller);
+                    var controllerNamePattern = breadcrumbCommand.ControllerNamePattern?.Replace(
+                            "$ControllerType$", controllerClass.Controller) 
+                        ?? $"\"{Regex.Replace(controllerClass.Controller, "Controller$", string.Empty)}\"";
 
                     foreach (var controllerAction in controllerClass.ActionDict.Values)
                     {
@@ -283,7 +288,7 @@ namespace MvcPodium.ConsoleApp.Controllers
                     }
                 }
 
-                if (!File.Exists(Path.Combine(breadcrumbOutputDirectory, serviceClassFilename)))
+                if (!File.Exists(serviceClassFilename))
                 {
                     var cos = _breadcrumbCommandStgService.RenderBreadcrumbServiceFile(
                         usingDirectives.ToList(),
@@ -292,7 +297,8 @@ namespace MvcPodium.ConsoleApp.Controllers
 
                     _ioUtilService.WriteStringToFile(
                         cos,
-                        Path.Combine(breadcrumbOutputDirectory, $"X{serviceClassFilename}"));
+                        outServiceClassFilename);
+                    UpdateWrittenTo(serviceClassFilename, outServiceClassFilename);
 
                     var ios = _breadcrumbCommandStgService.RenderBreadcrumbServiceFile(
                         usingDirectives.ToList(),
@@ -301,12 +307,14 @@ namespace MvcPodium.ConsoleApp.Controllers
 
                     _ioUtilService.WriteStringToFile(
                         ios,
-                        Path.Combine(breadcrumbOutputDirectory, $"X{serviceInterfaceFilename}"));
+                        outServiceInterfaceFilename);
+                    UpdateWrittenTo(serviceInterfaceFilename, outServiceInterfaceFilename);
                 }
                 else
                 {
                     var breadcrumbClassParser = new CSharpParserWrapper(
-                        Path.Combine(breadcrumbOutputDirectory, serviceClassFilename));
+                        GetPathFromWrittenTo(
+                            Path.Combine(breadcrumbOutputDirectory, serviceClassFilename)));
                     var tree = breadcrumbClassParser.GetParseTree();
 
                     var visitor = _breadcrumbClassInjectorFactory.Create(
@@ -317,20 +325,15 @@ namespace MvcPodium.ConsoleApp.Controllers
                         _userSettings.Value.TabString);
                     visitor.Visit(tree);
 
-                    var testServiceClassFilename = serviceClassFilename;
-                    var testServiceInterfaceFilename = Path.Combine(
-                        breadcrumbOutputDirectory, $"X{serviceInterfaceFilename}");
-
                     if (visitor.IsModified)
                     {
-                        testServiceClassFilename = Path.Combine(breadcrumbOutputDirectory, $"X{serviceClassFilename}");
-
                         _ioUtilService.WriteStringToFile(
                             visitor.Rewriter.GetText(),
-                            Path.Combine(breadcrumbOutputDirectory, $"X{serviceClassFilename}"));
+                            outServiceClassFilename);
+                        UpdateWrittenTo(serviceClassFilename, outServiceClassFilename);
                     }
 
-                    var serviceClassParser = new CSharpParserWrapper(testServiceClassFilename);
+                    var serviceClassParser = new CSharpParserWrapper(GetPathFromWrittenTo(serviceClassFilename));
 
                     var classScraperResults = _serviceCommandService.ScrapeServiceClass(
                         serviceClassParser,
@@ -343,11 +346,9 @@ namespace MvcPodium.ConsoleApp.Controllers
                             classScraperResults,
                             serviceInterfaceName,
                             breadcrumbRootNamespace),
-                        Path.Combine(breadcrumbOutputDirectory, $"X{serviceInterfaceFilename}"));
-
+                        outServiceInterfaceFilename);
+                    UpdateWrittenTo(serviceInterfaceFilename, outServiceInterfaceFilename);
                 }
-
-                var x = 1;
             }
 
             RegisterServicesInStartup(startupRegInfoList);
@@ -377,7 +378,7 @@ namespace MvcPodium.ConsoleApp.Controllers
             {
                 //  Else:
                 //      Parse Startup.cs
-                var startupParser = new CSharpParserWrapper(startupFilepath);
+                var startupParser = new CSharpParserWrapper(GetPathFromWrittenTo(startupFilepath));
 
                 var startupFileRewrite = _serviceCommandService.RegisterServicesInStartup(
                     startupParser: startupParser,
@@ -391,6 +392,7 @@ namespace MvcPodium.ConsoleApp.Controllers
                         startupFileRewrite,
                         // startupFilepath);
                         testStartupFilepath);
+                    UpdateWrittenTo(startupFilepath, testStartupFilepath);
                 }
             }
         }
@@ -407,7 +409,7 @@ namespace MvcPodium.ConsoleApp.Controllers
             {
 
 
-                var controllerParser = new CSharpParserWrapper(filepath);
+                var controllerParser = new CSharpParserWrapper(GetPathFromWrittenTo(filepath));
                 var tree = controllerParser.GetParseTree();
 
                 var visitor = _breadcrumbControllerInjectorFactory.Create(
@@ -425,8 +427,8 @@ namespace MvcPodium.ConsoleApp.Controllers
                         visitor.Rewriter.GetText(),
                         // filepath);
                         filepath + ".test.cs");
+                    UpdateWrittenTo(filepath, filepath + ".test.cs");
                 }
-                var g = 1;
             }
 
         }
@@ -453,6 +455,16 @@ namespace MvcPodium.ConsoleApp.Controllers
             }
 
             return cSharpFiles;
+        }
+
+        private string GetPathFromWrittenTo(string key)
+        {
+            return _writtenTo.ContainsKey(key) ? _writtenTo[key] : key;
+        }
+
+        private void UpdateWrittenTo(string key, string value)
+        {
+            _writtenTo[key] = value;
         }
     }
 }

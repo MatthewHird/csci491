@@ -30,9 +30,9 @@ ClassDeclaration(
 >>
 
 
-ServiceStartupRegistrationCall(serviceLifespan, hasTypeParameters, serviceName) ::= <<
+ServiceStartupRegistrationCall(serviceLifespan, hasTypeParameters, serviceClassType, serviceBaseType) ::= <<
 .Add<serviceLifespan><\\>
-<if(hasTypeParameters)>(typeof(I<serviceName>Service\<>), typeof(<serviceName>Service\<>))<\\>
-<else>\<I<serviceName>Service, <serviceName>Service>()<endif>
+<if(hasTypeParameters)>(typeof(<serviceBaseType>\<>), typeof(<serviceClassType>\<>))<\\>
+<else>\<<serviceBaseType>, <serviceClassType>\>()<endif>
 >>
 

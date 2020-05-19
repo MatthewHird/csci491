@@ -33,7 +33,8 @@ namespace MvcPodium.ConsoleApp.Constants.StringTemplateGroups.ServiceCommand
         {
             public const string ServiceLifespan = "serviceLifespan";
             public const string HasTypeParameters = "hasTypeParameters";
-            public const string ServiceName = "serviceName";
+            public const string ServiceClassType = "serviceClassType";
+            public const string ServiceBaseType = "serviceBaseType";
         }
     }
 }

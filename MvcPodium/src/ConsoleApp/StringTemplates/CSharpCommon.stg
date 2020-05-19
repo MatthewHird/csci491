@@ -136,7 +136,7 @@ DefaultPropertyBody(hasGetAccessor, hasSetAccessor) ::= <<
 
 
 UsingDirectives(usingDirectives) ::= <<
-<usingDirectives:{usingDirective|<UsingDirective(usingDirective)><\n>}>
+<usingDirectives:{usingDirective|<UsingDirective(usingDirective)>}; separator="\n">
 >>
 
 

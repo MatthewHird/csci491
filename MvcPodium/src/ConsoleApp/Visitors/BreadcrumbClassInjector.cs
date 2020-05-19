@@ -305,7 +305,7 @@ namespace MvcPodium.ConsoleApp.Visitors
                             ? constructorStringBuilder : new StringBuilder());
 
                     methodStringBuilder.Append(_breadcrumbCommandParserService.GenerateBreadcrumbMethodDeclarations(
-                        _breadcrumbDeclaration.Body.MethodDeclarations,
+                        _methodDictionary.Values.ToList(),
                         tabLevels,
                         _tabString));
                 }

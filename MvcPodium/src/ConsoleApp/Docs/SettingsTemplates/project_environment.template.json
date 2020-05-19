@@ -1,6 +1,8 @@
 {
     "ProjectEnvironment": {
+        // REQUIRED. Full path of the project root directory.
         "RootDirectory": "C:\\Full\\Path\\Required",
+        // REQUIRED. The root namespace for the project.
         "RootNamespace": "Required"
     }
 }

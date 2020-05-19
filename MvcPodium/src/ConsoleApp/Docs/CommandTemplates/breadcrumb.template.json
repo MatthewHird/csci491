@@ -1,17 +1,38 @@
 {
     "BreadcrumbCommands": [
         {
-            "Area": "Form", // if != null, path will be relative to ~/Areas/<Area>/
-            "TargetDirectory": "Controllers", // null == Controllers/
-            "TargetFile": null, // null == all
-            "BreadcrumbServiceDirectory": null, // null == Services/Breadcrumbs/
+            // null (default) means "~/" will replace "~/Areas/<AreaName>/".
+            "Area": "MyArea",
+            // The directory of files to target.
+            // null (default) == "~/Areas/<AreaName>/Controllers".
+            "TargetDirectory": "Controllers",
+            // The file (containing a "Controller" class) to target.
+            // Absolute filepath or relative to <TargetDirectory>.
+            // null (default) means each file in <TargetDirectory> will be targeted.
+            "TargetFile": null,
+            // null (default) == "Services/Breadcrumbs".
+            "BreadcrumbServiceDirectory": null,
+            // If true, command will recursively check subdirectories for targets.
             "IsRecursive": true,
+            // Pattern for the "controller" argument of the MvcBreadcrumbNode
+            //   constructor.
+            // Will be inserted directly as code, substituting $ControllerType$ with
+            //   the controller class's type.
             "ControllerNamePattern": "_controllerService.GetRootName<$ControllerType$>()",
+            // Other services to be injected into the constructor of the breadcrumb 
+            //   service.
             "InjectedServices": [
                 {
-                    "Type": "IMyControllerService",
-                    "ServiceIdentifier": "myControllerService",
-                    "Namespace": "MyProgram.MyServices"
+                    // Type of the service to be injected.
+                    "Type": "IControllerService",
+                    // The identifier for the service to be used as a parameter in the 
+                    //   class constructor. The private class field for the service will
+                    //   be the identifier prefixed with an underscore.
+                    // null (default) means the injected service class name in camelcase
+                    //   will be used (e.g. "controllerService").
+                    "ServiceIdentifier": "controllerService",
+                    // Full namespace of the injected service.
+                    "Namespace": "MyProgram.Services"
                 }
             ]
         }

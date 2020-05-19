@@ -8,6 +8,5 @@ namespace MvcPodium.ConsoleApp.Models.Config
     {
         public string AssemblyDirectory { get; set; }
         public string StringTemplatesDirectory { get; set; }
-        public string CommandFilesDirectory { get; set; }
     }
 }

@@ -154,7 +154,8 @@ namespace MvcPodium.ConsoleApp.Services
             CSharpParserWrapper startupParser,
             string rootNamespace,
             string serviceNamespace,
-            string serviceName,
+            string serviceClassType,
+            string serviceBaseType,
             bool hasTypeParameters,
             ServiceLifetime serviceLifespan,
             string tabString = null)
@@ -167,7 +168,8 @@ namespace MvcPodium.ConsoleApp.Services
                 startupRegInfo: new StartupRegistrationInfo()
                 {
                     ServiceNamespace = serviceNamespace,
-                    ServiceName = serviceName,
+                    ServiceClassType = serviceClassType,
+                    ServiceBaseType = serviceBaseType,
                     HasTypeParameters = hasTypeParameters,
                     ServiceLifespan = serviceLifespan
                 },
@@ -195,8 +197,8 @@ namespace MvcPodium.ConsoleApp.Services
             return serviceStartupRegistration.IsModified ? serviceStartupRegistration.Rewriter.GetText() : null;
         }
 
-        public string InjectServiceIntoController(
-            CSharpParserWrapper controllerInjectorParser,
+        public string InjectServiceIntoConstructor(
+            CSharpParserWrapper constructorInjectorParser,
             string constructorClassName,
             string constructorClassNamespace,
             string serviceIdentifier,
@@ -208,10 +210,10 @@ namespace MvcPodium.ConsoleApp.Services
             ConstructorDeclaration constructorDeclaration,
             string tabString = null)
         {
-            var controllerInjectorTree = controllerInjectorParser.GetParseTree();
+            var controllerInjectorTree = constructorInjectorParser.GetParseTree();
 
             var serviceControllerInjector = _serviceConstructorInjectorFactory.Create(
-                controllerInjectorParser.Tokens,
+                tokenStream: constructorInjectorParser.Tokens,
                 constructorClassName: constructorClassName,
                 constructorClassNamespace: constructorClassNamespace,
                 serviceIdentifier: serviceIdentifier,

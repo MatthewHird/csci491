@@ -63,7 +63,8 @@ namespace MvcPodium.ConsoleApp.Services
 
 
         public string RenderServiceStartupRegistrationCall(
-            string serviceName = null,
+            string serviceClassType = null,
+            string serviceBaseType = null,
             bool? hasTypeParameters = null,
             string serviceLifespan = null)
         {
@@ -74,7 +75,9 @@ namespace MvcPodium.ConsoleApp.Services
             stringTemplate.Add(
                 StgServiceCommand.ServiceStartupRegistrationCall.Params.HasTypeParameters, hasTypeParameters);
             stringTemplate.Add(
-                StgServiceCommand.ServiceStartupRegistrationCall.Params.ServiceName, serviceName);
+                StgServiceCommand.ServiceStartupRegistrationCall.Params.ServiceClassType, serviceClassType);
+            stringTemplate.Add(
+                StgServiceCommand.ServiceStartupRegistrationCall.Params.ServiceBaseType, serviceBaseType);
             return stringTemplate.Render();
         }
     }

@@ -150,7 +150,7 @@ namespace MvcPodium.ConsoleApp.Visitors
                 {
                     foreach (var memberDeclaration in memberDeclarations)
                     {
-                        bool isPublicOrInternal = false;
+                        bool isPublic = false;
 
                         var classMethodDeclaration = memberDeclaration?.method_declaration();
                         var classPropertyDeclaration = memberDeclaration?.property_declaration();
@@ -172,16 +172,15 @@ namespace MvcPodium.ConsoleApp.Visitors
                             {
                                 foreach (var methodMod in methodModifiers)
                                 {
-                                    if (methodMod.GetText() == Keywords.Public 
-                                        || methodMod.GetText() == Keywords.Internal)
+                                    if (methodMod.GetText() == Keywords.Public)
                                     {
-                                        isPublicOrInternal = true;
+                                        isPublic = true;
                                     }
                                     methodDeclaration.Modifiers.Add(methodMod.GetText());
                                 }
                             }
 
-                            if (!isPublicOrInternal) { continue; }
+                            if (!isPublic) { continue; }
 
                             var formalParameterList = classMethodDeclaration?.method_header()?.formal_parameter_list();
                             methodDeclaration.FormalParameterList = 
@@ -227,16 +226,15 @@ namespace MvcPodium.ConsoleApp.Visitors
                             {
                                 foreach (var propModifier in propertyModifiers)
                                 {
-                                    if (propModifier.GetText() == Keywords.Public
-                                        || propModifier.GetText() == Keywords.Internal)
+                                    if (propModifier.GetText() == Keywords.Public)
                                     {
-                                        isPublicOrInternal = true;
+                                        isPublic = true;
                                     }
                                     propertyDeclaration.Modifiers.Add(propModifier.GetText());
                                 }
                             }
 
-                            if (!isPublicOrInternal) { continue; }
+                            if (!isPublic) { continue; }
 
                             classDeclaration.Body.PropertyDeclarations.Add(propertyDeclaration);
                         }

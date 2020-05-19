@@ -19,11 +19,6 @@ namespace MvcPodium.ConsoleApp
     {
         static void Main(string[] args)
         {
-            //var config = new ConfigurationBuilder()
-            //    .AddCommandLine(args)
-            //    .AddJsonFile(Environment.GetEnvironmentVariable("MvcPodium_AppSettings"))
-            //    .Build();
-
             var app = new CommandLineApplication()
             {
                 Name = "MvcPodium",
@@ -34,25 +29,31 @@ namespace MvcPodium.ConsoleApp
 
             app.HelpOption();
 
-            var projectEnvironment = app.Option("-p|--project_environment=<optionvalue>",
-                    "Some option value",
+            var projectEnvironment = app.Option("-p|--project_environment=<PATH>",
+                    "REQUIRED. Absolute path to the project environment JSON file.",
                     CommandOptionType.SingleValue)
                 .IsRequired()
                 .Accepts(a => a.ExistingFileOrDirectory());
 
-            var commandFileDirectory = app.Option("-d|--command_file_directory=<optionvalue>",
-                    "Some option value",
+            var commandFileDirectory = app.Option("-d|--command_file_directory=<PATH>",
+                    "Absolute path to the directory containing command files.",
                     CommandOptionType.SingleValue)
                 .Accepts(a => a.ExistingDirectory());
 
-            var commandFiles = app.Option("-f|--command_file=<optionvalue>",
-                    "Some option value",
+            var commandFiles = app.Option("-f|--command_file=<PATH>",
+                    "REQUIRED.Option can be used multiple times to pass in multiple command files. Path can be " +
+                    "absolute or relative to the command file directory.",
                     CommandOptionType.MultipleValue);
 
-            var userSettingsPath = app.Option("-u|--user_settings=<optionvalue>",
-                    "Some option value",
+            var userSettingsPath = app.Option("-u|--user_settings=<PATH>",
+                    "Absolute path to user settings JSON file.",
                     CommandOptionType.SingleValue)
                 .Accepts(a => a.ExistingFile());
+
+            var logLevelOption = app.Option("-g|--log_level=<LEVEL>",
+                    "The minimum log level. values: { Debug, Information(default), Warning, Error, Critical, None}",
+                    CommandOptionType.SingleValue)
+                .Accepts(a => a.Enum<LogLevel>(true));
 
             app.OnExecute(() =>
             {
@@ -113,15 +114,21 @@ namespace MvcPodium.ConsoleApp
                     inMemConfig[$"CommandLineArgs:CommandFiles:{i}"] = commandFilesFull[i];
                 }
 
+                var logLevel = LogLevel.Information;
+                if (logLevelOption?.Value() != null)
+                {
+                    logLevel = Enum.Parse<LogLevel>(logLevelOption.Value());
+                    if (logLevel == LogLevel.Trace)
+                    {
+                        logLevel = LogLevel.Debug;
+                    }
+                }
+
                 var config = CreateConfiguration(inMemConfig, pe, userSettingsPath?.Value());
-                var serviceProvider = CreateServiceProvider(config);
+                var serviceProvider = CreateServiceProvider(config, logLevel);
 
                 var program = serviceProvider.GetRequiredService<MvcPodiumController>();
-                int returnVal = program.Run();
-                return returnVal;
-
-                // CreateHostBuilder(inMemConfig, userSettingsPath?.Value()).Build().RunAsync();
-                // return 0;
+                return program.Run();
             });
 
             try
@@ -160,7 +167,7 @@ namespace MvcPodium.ConsoleApp
             return configBuilder.Build();
         }
 
-        public static IServiceProvider CreateServiceProvider(IConfigurationRoot config)
+        public static IServiceProvider CreateServiceProvider(IConfigurationRoot config, LogLevel logLevel)
         {
             IServiceCollection serviceCollection = new ServiceCollection();
 
@@ -172,6 +179,8 @@ namespace MvcPodium.ConsoleApp
                     .AddFilter("System", LogLevel.Warning)
                     .AddFilter("LoggingConsoleApp.Program", LogLevel.Debug)
                     .AddConsole()
+                    .AddDebug()
+                    .SetMinimumLevel(logLevel)
                     .AddEventLog();
             });
 

@@ -19,7 +19,8 @@ namespace MvcPodium.ConsoleApp.Services
             ClassInterfaceDeclaration service = null);
 
         string RenderServiceStartupRegistrationCall(
-            string serviceName = null,
+            string serviceClassType = null,
+            string serviceBaseType = null,
             bool? hasTypeParameters = null,
             string serviceLifespan = null);
     }

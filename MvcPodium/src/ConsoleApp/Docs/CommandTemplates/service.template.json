@@ -1,35 +1,67 @@
 {
-    "ServicesCommands": [
+    "ServiceCommands": [
         {
-            // Created service and interface will be called MyServiceNameService and IMyServiceNameService
-            "ServiceRootName": "MyServiceName",
-            "SourceOfTruth": "Class", // Class (default), Interface, Match
-            "Area": null, // null means the top level will be checked
-            "Subdirectory": null, // The subfolder path relative to ~/Areas/<AreaName>/Services/
-            "ServiceLifespan": "Scoped", // Scoped (default), Singleton, Tansient
+            // Created service class type will be "MyServiceName" and class file 
+            //   will be called "MyServiceName.cs"
+            "ServiceName": "MyServiceName",
+            // If true, only a service class will be created/injected/registered.
+            // The class type will be used as both the abstract type and concrete 
+            //   implementation when being registered in "Startup.cs".
+            // If false, an interface type "I<ServiceName>" will be created in
+            //   "I<ServiceName>.cs" and the interface type will be used as the
+            //   abstract type when the service is registered and will be created in
+            // null (default) == false.
+            "IsClassOnly": false,
+            // Values = {Class (default), Interface, Match}.
+            // Ignored if "IsClassOnly" == true.
+            "SourceOfTruth": "Class",
+            // null (default) means "~/" will replace "~/Areas/<AreaName>/".
+            "Area": null,
+            // The directory path relative to "~/Areas/<AreaName>/".
+            // null (default) == "Services/".
+            "Subdirectory": null,
+            // Values = {"Scoped" (default), "Singleton", "Transient"}.
+            "ServiceLifespan": "Scoped",
+            // Generic type parameters (e.g. MyClass<T> where T: IMyType).
             "TypeParameters": [
                 {
                     "TypeParam": "T",
-                    "VarianceAnnotation": null, // in, out
                     "Constraints": [
                         "IMyType"
                     ]
                 }
-
             ],
+            // Other services to be injected into the constructor of this service.
             "InjectedServices": [
                 {
-                    "Type": "MyInjectedService",
+                    // Type of the service to be injected.
+                    "Type": "IMyInjectedService",
+                    // The identifier for the service to be used as a parameter in the 
+                    //   class constructor. The private class field for the service will
+                    //   be the identifier prefixed with an underscore.
+                    // null (default) means the injected service class name in camelcase
+                    //   will be used (e.g. "myInjectedService").
                     "ServiceIdentifier": "myInjectedService",
+                    // Full namespace of the injected service.
                     "Namespace": "Full.Namespace"
                 }
             ],
+            // Service will be injected into the constructor of each class below.
             "InjectInto": [
                 {
-                    "ClassName": "MyController", // The controller's path relative to ~/Areas/<AreaName>/Controllers/
-                    "Area": null, // null means the top level will be checked
-                    "Subdirectory": null, // The subfolder path relative to ~/Areas/<AreaName>/
-                    "ServiceIdentifier": null // null means the defaut name will be used "myServiceNameService" and "_myServiceNameService"
+                    // File name must match "<ClassName>.cs".
+                    "ClassName": "MyController",
+                    // null (default) means "~/" will replace "~/Areas/<AreaName>/".
+                    "Area": null,
+                    // Class file's directory path relative to "~/Areas/<AreaName>/".
+                    // null (default) == "".
+                    "Subdirectory": null,
+                    // The identifier for the service to be used as a parameter in the 
+                    //   class constructor. The private class field for the service will
+                    //   be the identifier prefixed with an underscore.
+                    // null (default) means the service class name in camelcase will be
+                    //   used (e.g. "myServiceNameService" and "_myServiceNameService").
+                    "ServiceIdentifier": null
                 }
             ]
         }

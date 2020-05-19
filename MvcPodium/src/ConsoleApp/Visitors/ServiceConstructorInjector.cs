@@ -1,5 +1,6 @@
 using Antlr4.Runtime;
 using Antlr4.Runtime.Misc;
+using Microsoft.Extensions.Logging;
 using MvcPodium.ConsoleApp.Models.CSharpCommon;
 using MvcPodium.ConsoleApp.Services;
 using System;
@@ -15,6 +16,7 @@ namespace MvcPodium.ConsoleApp.Visitors
         private readonly IStringUtilService _stringUtilService;
         private readonly ICSharpParserService _cSharpParserService;
         private readonly ICSharpCommonStgService _cSharpCommonStgService;
+        private readonly ILogger _logger;
         private readonly Stack<string> _currentNamespace;
 
         private readonly string _constructorClassName;
@@ -29,6 +31,9 @@ namespace MvcPodium.ConsoleApp.Visitors
         private readonly ConstructorDeclaration _constructorDeclaration;
         private readonly string _tabString;
 
+        private bool _isConstructorClassFound;
+        private bool _isRewritten;
+
         public bool IsModified { get; private set; }
 
         public TokenStreamRewriter Rewriter { get; }
@@ -38,6 +43,7 @@ namespace MvcPodium.ConsoleApp.Visitors
             IStringUtilService stringUtilService,
             ICSharpParserService cSharpParserService,
             ICSharpCommonStgService cSharpCommonStgService,
+            ILogger logger,
             BufferedTokenStream tokenStream,
             string constructorClassName,
             string constructorClassNamespace,
@@ -53,6 +59,7 @@ namespace MvcPodium.ConsoleApp.Visitors
             _stringUtilService = stringUtilService;
             _cSharpParserService = cSharpParserService;
             _cSharpCommonStgService = cSharpCommonStgService;
+            _logger = logger;
             Tokens = tokenStream;
             Rewriter = new TokenStreamRewriter(tokenStream);
             _constructorClassName = constructorClassName;
@@ -67,6 +74,8 @@ namespace MvcPodium.ConsoleApp.Visitors
             _tabString = tabString;
             _currentNamespace = new Stack<string>();
             IsModified = false;
+            _isConstructorClassFound = false;
+            _isRewritten = false;
         }
 
         public override object VisitCompilation_unit([NotNull] CSharpParser.Compilation_unitContext context)
@@ -82,11 +91,18 @@ namespace MvcPodium.ConsoleApp.Visitors
                     missingUsingDirectives.ToList(),
                     usingStopIndex.Equals(context.Start));
 
-                IsModified = true;
+                _isRewritten = true;
                 Rewriter.InsertAfter(usingStopIndex, usingDirectiveStr);
             }
 
             VisitChildren(context);
+
+            IsModified = _isRewritten && _isConstructorClassFound;
+            if (!_isConstructorClassFound)
+            {
+                _logger.LogWarning($"No class found called {_constructorClassName} in namespace " +
+                    $"{_constructorClassNamespace}. Failed to inject {_serviceInterfaceType} into class.");
+            }
             return null;
         }
 
@@ -105,6 +121,8 @@ namespace MvcPodium.ConsoleApp.Visitors
             if (context.identifier().GetText() == _constructorClassName 
                 && currentNamespace == _constructorClassNamespace)
             {
+                _isConstructorClassFound = true;
+
                 var preclassWhitespace = Tokens.GetHiddenTokensToLeft(context.Start.TokenIndex, Lexer.Hidden);
 
                 int classBodyTabLevels = 1 + ((preclassWhitespace?.Count ?? 0) > 0 ?
@@ -249,7 +267,7 @@ namespace MvcPodium.ConsoleApp.Visitors
 
                                     if (!Regex.IsMatch(preParamArrayWhitespace, @"\r?\n"))
                                     {
-                                        IsModified = true;
+                                        _isRewritten = true;
                                         Rewriter.InsertBefore(
                                             formalParamList.parameter_array().Start.TokenIndex,
                                             "\r\n" +
@@ -279,7 +297,7 @@ namespace MvcPodium.ConsoleApp.Visitors
 
                                 if (!Regex.IsMatch(preParamArrayWhitespace, $"\r?\n"))
                                 {
-                                    IsModified = true;
+                                    _isRewritten = true;
                                     Rewriter.InsertBefore(
                                         formalParamList.parameter_array().Start.TokenIndex,
                                         "\r\n" + 
@@ -291,7 +309,7 @@ namespace MvcPodium.ConsoleApp.Visitors
                         var paramString = paramStringBuilder.ToString();
                         if (paramString.Length > 0)
                         {
-                            IsModified = true;
+                            _isRewritten = true;
                             Rewriter.InsertAfter(fixedParamStopIndex, paramString);
                         }
                     }
@@ -301,7 +319,7 @@ namespace MvcPodium.ConsoleApp.Visitors
                     var constructorBody = constructorContext?.constructor_body();
                     if (constructorBody.SEMICOLON() != null)
                     {
-                        IsModified = true;
+                        _isRewritten = true;
                         Rewriter.Replace(constructorBody.SEMICOLON().Symbol.TokenIndex, _stringUtilService.TabString(
                             $@"\r\n{{\r\n{_tabString}{ctorAssignString}\r\n}}",
                             classBodyTabLevels,
@@ -346,7 +364,7 @@ namespace MvcPodium.ConsoleApp.Visitors
                             var assignmentString = assignmentStringBuilder.ToString();
                             if (assignmentString.Length > 0)
                             {
-                                IsModified = true;
+                                _isRewritten = true;
                                 Rewriter.InsertAfter(assignmentStopIndex, assignmentString);
                             }
                         }
@@ -356,7 +374,7 @@ namespace MvcPodium.ConsoleApp.Visitors
                 var fieldString = fieldStringBuilder.ToString();
                 if (fieldString.Length > 0)
                 {
-                    IsModified = true;
+                    _isRewritten = true;
                     Rewriter.InsertAfter(fieldStopIndex, fieldString);
                 }
 
@@ -366,7 +384,7 @@ namespace MvcPodium.ConsoleApp.Visitors
                     var constructorString = constructorStringBuilder.ToString();
                     if (constructorString.Length > 0)
                     {
-                        IsModified = true;
+                        _isRewritten = true;
                         Rewriter.InsertAfter(Tokens.Get(constructorStopIndex ?? -1), constructorString);
                     }
                 }

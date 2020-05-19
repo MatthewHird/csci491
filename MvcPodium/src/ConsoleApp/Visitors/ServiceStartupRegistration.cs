@@ -189,7 +189,8 @@ namespace MvcPodium.ConsoleApp.Visitors
                         foreach (var regInfo in missingRegInfo)
                         {
                             var regCallString = _serviceCommandStgService.RenderServiceStartupRegistrationCall(
-                                serviceName: regInfo.ServiceName,
+                                serviceClassType: regInfo.ServiceClassType,
+                                serviceBaseType: regInfo.ServiceBaseType,
                                 hasTypeParameters: regInfo.HasTypeParameters,
                                 serviceLifespan: regInfo.ServiceLifespan.ToString());
 
@@ -216,10 +217,10 @@ namespace MvcPodium.ConsoleApp.Visitors
         private string ServiceRegistrationMatchString(StartupRegistrationInfo regInfo)
         {
             return regInfo.HasTypeParameters
-                ? $@"\.\s*Add{regInfo.ServiceLifespan}\s*\(\s*typeof\s*\(\s*I{regInfo.ServiceName}" +
-                    $@"Service\s*<\s*>\s*\)\s*,\s*typeof\s*\(\s*{regInfo.ServiceName}Service\s*<\s*>\s*\)\s*\)"
-                : $@"\.\s*Add{regInfo.ServiceLifespan}\s*<\s*I{regInfo.ServiceName}Service\s*,\s*" +
-                    $@"{regInfo.ServiceName}Service\s*>\s*\(\s*\)";
+                ? $@"\.\s*Add{regInfo.ServiceLifespan}\s*\(\s*typeof\s*\(\s*{regInfo.ServiceBaseType}" +
+                    $@"\s*<\s*>\s*\)\s*,\s*typeof\s*\(\s*{regInfo.ServiceClassType}\s*<\s*>\s*\)\s*\)"
+                : $@"\.\s*Add{regInfo.ServiceLifespan}\s*<\s*{regInfo.ServiceBaseType}\s*,\s*" +
+                    $@"{regInfo.ServiceClassType}\s*>\s*\(\s*\)";
         }
 
     }

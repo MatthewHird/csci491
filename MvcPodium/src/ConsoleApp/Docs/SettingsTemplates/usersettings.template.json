@@ -1,3 +1,5 @@
 {
+    // String to represent one tab level throughout the read and generated code.
+    // Four spaces is the default value. 
     "TabString": "    "
 }

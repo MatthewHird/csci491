@@ -14,7 +14,8 @@ namespace MvcPodium.ConsoleApp.Models.Config
 
     public class ServiceCommand
     {
-        public string ServiceRootName { get; set; }
+        public string ServiceName { get; set; }
+        public bool? IsClassOnly { get; set; }
         public SourceOfTruth? SourceOfTruth { get; set; }
         public string Area { get; set; }
         public string Subdirectory { get; set; }

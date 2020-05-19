@@ -114,13 +114,7 @@ namespace MvcPodium.ConsoleApp.Visitors
 
             if (_isClassModified.Peek() && _isControllerClass.Peek())
             {
-                var currentNamespace = GetCurrentNamespace();
                 var currentClass = GetCurrentClass();
-                var controllerClass = ControllerDict.NamespaceDict[currentNamespace].ClassDict[currentClass];
-
-                //public string Namespace { get; set; }
-                //public string ControllerRoot { get; set; }
-                //public string Controller { get; set; }
                 var serviceInterfaceName = GetServiceInterfaceName();
                 var controllerServiceIdentifier = "breadcrumbService";
 

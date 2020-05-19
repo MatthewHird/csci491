@@ -1,4 +1,6 @@
 ﻿using Antlr4.Runtime;
+using Microsoft.Extensions.Logging;
+using MvcPodium.ConsoleApp.Controllers;
 using MvcPodium.ConsoleApp.Models.CSharpCommon;
 using MvcPodium.ConsoleApp.Services;
 
@@ -25,14 +27,17 @@ namespace MvcPodium.ConsoleApp.Visitors.Factories
         private readonly IStringUtilService _stringUtilService;
         private readonly ICSharpParserService _cSharpParserService;
         private readonly ICSharpCommonStgService _cSharpCommonStgService;
+        private readonly ILogger<MvcPodiumController> _logger;
         public ServiceConstructorInjectorFactory(
             IStringUtilService stringUtilService,
             ICSharpParserService cSharpParserService,
-            ICSharpCommonStgService cSharpCommonStgService)
+            ICSharpCommonStgService cSharpCommonStgService,
+            ILogger<MvcPodiumController> logger)
         {
             _stringUtilService = stringUtilService;
             _cSharpParserService = cSharpParserService;
             _cSharpCommonStgService = cSharpCommonStgService;
+            _logger = logger;
         }
 
         public ServiceConstructorInjector Create(
@@ -52,6 +57,7 @@ namespace MvcPodium.ConsoleApp.Visitors.Factories
                 _stringUtilService,
                 _cSharpParserService,
                 _cSharpCommonStgService,
+                _logger,
                 tokenStream,
                 constructorClassName,
                 constructorClassNamespace,
