@@ -88,19 +88,6 @@ namespace MvcPodium.ConsoleApp.Models.BreadcrumbCommand
         public ClassInterfaceBase Base { get; set; }
 
         public BreadcrumbServiceBody Body { get; set; } = new BreadcrumbServiceBody();
-
-        public ClassInterfaceDeclaration CopyHeader()
-        {
-            return new ClassInterfaceDeclaration()
-            {
-                IsInterface = IsInterface.Copy(),
-                Attributes = Attributes?.Copy(),
-                Modifiers = Modifiers?.Copy(),
-                Identifier = Identifier?.Copy(),
-                TypeParameters = TypeParameters?.Copy(),
-                Base = Base?.Copy()
-            };
-        }
     }
 
     public class BreadcrumbServiceBody
